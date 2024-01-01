@@ -180,8 +180,16 @@ async def handle_infer(req: RunInferenceRequest) -> RunInferenceResponse:
             key_name = f"inferix:llm:conversation:{req.context.id}:{req.instructions.conversation.store_key}"
             logger.info(f"Storing conversation at {key_name}")
             r = RedisClient.get_client()
-            await RedisClient.append_to_sorted_set(key_name, f"user:::{req.messages[len(req.messages) -1].content}")
-            await RedisClient.append_to_sorted_set(key_name, f"{req.instructions.conversation.assistant_name}:::{conversation_text}")
+
+            if req.instructions.conversation.store_entire_history:
+                load_key_name = f"inferix:llm:conversation:{req.context.id}:{req.instructions.conversation.load_key}"
+                conversation = await r.zrange(load_key_name, 0, -1)  # type: ignore
+                conversation.append(f"user:::{req.messages[len(req.messages) -1].content}")
+                conversation.append(f"{req.instructions.conversation.assistant_name}:::{conversation_text}")
+                await RedisClient.store_as_sorted_set(key_name, conversation)
+            else:
+                await RedisClient.append_to_sorted_set(key_name, f"user:::{req.messages[len(req.messages) -1].content}")
+                await RedisClient.append_to_sorted_set(key_name, f"{req.instructions.conversation.assistant_name}:::{conversation_text}")
 
         # Prepare usage object
         usage: CompletionUsage = CompletionUsage(

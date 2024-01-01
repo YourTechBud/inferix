@@ -20,7 +20,7 @@ class ConversationOptions(BaseModel):
     store_key: Optional[str] = None
 
     # Store entire history will store the entire conversation history overwriting the previous one
-    store_entire_history: Optional[bool] = False # TODO: Implement this
+    store_entire_history: Optional[bool] = False
 
     # Load key will load the conversation from the conversation history
     load_key: Optional[str] = None

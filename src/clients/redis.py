@@ -19,7 +19,7 @@ class RedisClient:
           Redis: The Redis client instance.
         """
         if cls.client is None:
-          cls.client = Redis(decode_responses=True)
+            cls.client = Redis(decode_responses=True)
 
         return cls.client
 
@@ -59,7 +59,27 @@ class RedisClient:
         max_score: int = 0 if not bool(member) else int(member[0][1])
 
         # Now lets add the new member with a score of max_score + 1
-        await client.zadd(key, {value: max_score + 1})
+        await client.zadd(key, {value: max_score + 1}, nx=True)
+
+    @classmethod
+    async def store_as_sorted_set(cls, key: str, values: list[str]) -> None:
+        """
+        Stores a list of values as a sorted set in Redis. It will overwrite the existing sorted set.
+
+        Args:
+          key (str): The key of the sorted set.
+          values (list[str]): The values to be stored.
+
+        Returns:
+          None
+        """
+        client = cls.get_client()
+
+        # First lets delete the key if it exists
+        await client.delete(key)
+
+        # Let's add the values as a sorted set to redis
+        await client.zadd(key, {v: i + 1 for i, v in enumerate(values)})
 
 
 async def create_redis_client() -> None:
