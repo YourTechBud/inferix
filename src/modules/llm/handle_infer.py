@@ -202,3 +202,15 @@ async def handle_infer(req: RunInferenceRequest) -> RunInferenceResponse:
 
         # Return the response
         return res
+
+async def handle_delete_conversation(ctx_id: str, key: str) -> StandardResponse:
+    # This is the key we'll use to retrieve the result
+    key_name = f"inferix:llm:conversation:{ctx_id}:{key}"
+
+    # Get the redis client
+    redis_client = await RedisClient.get_client()
+
+    # Delete the key
+    await redis_client.delete(key_name)
+
+    return StandardResponse(message=f"Deleted conversation for {ctx_id}:{key}")

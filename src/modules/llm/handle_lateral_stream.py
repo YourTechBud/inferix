@@ -38,7 +38,7 @@ async def handle_lateral_stream(ctx_id: str, ctx_name: str, interval: int = 200)
     return EventSourceResponse(stream_response())
 
 
-async def handle_delete_lateral_stream(ctx_id: str, ctx_name: str) -> StandardResponse:
+async def handle_delete_lateral_stream_state(ctx_id: str, ctx_name: str) -> StandardResponse:
     # This is the key we'll use to retrieve the result
     key_name = f"inferix:llm:{ctx_id}:{ctx_name}"
 

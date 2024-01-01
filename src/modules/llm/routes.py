@@ -6,8 +6,8 @@ from models.http import StandardResponse
 from models.infer import RunInferenceRequest, RunInferenceResponse
 from models.openai import CreateChatCompletionRequest, CreateChatCompletionResponse
 
-from .handle_infer import handle_infer
-from .handle_lateral_stream import handle_delete_lateral_stream, handle_lateral_stream
+from .handle_infer import handle_delete_conversation, handle_infer
+from .handle_lateral_stream import handle_delete_lateral_stream_state, handle_lateral_stream
 from .handler_completion import handle_completions
 
 router = APIRouter(tags=["llm"], prefix="/api/llm/v1")
@@ -22,11 +22,15 @@ async def chat_completions(req: CreateChatCompletionRequest) -> CreateChatComple
 async def infer(req: RunInferenceRequest) -> RunInferenceResponse:
     return await handle_infer(req)
 
+@router.delete("/infer/conversations/{ctx_id}/{key}", response_model_exclude_none=True)
+async def delete_conversation(ctx_id: str, key: str) -> StandardResponse:
+    return await handle_delete_conversation(ctx_id, key)
 
-@router.get("/infer/stream/{ctx_id}/{ctx_name}", response_model_exclude_none=True)
+
+@router.get("/infer/streams/{ctx_id}/{ctx_name}", response_model_exclude_none=True)
 async def infer_stream(ctx_id: str, ctx_name: str, interval: int = 200) -> EventSourceResponse:
     return await handle_lateral_stream(ctx_id, ctx_name, interval)
 
-@router.delete("/infer/stream/{ctx_id}/{ctx_name}", response_model_exclude_none=True)
-async def delete_infer_stream(ctx_id: str, ctx_name: str) -> StandardResponse:
-    return await handle_delete_lateral_stream(ctx_id, ctx_name)
+@router.delete("/infer/streams/{ctx_id}/{ctx_name}", response_model_exclude_none=True)
+async def delete_infer_stream_state(ctx_id: str, ctx_name: str) -> StandardResponse:
+    return await handle_delete_lateral_stream_state(ctx_id, ctx_name)
