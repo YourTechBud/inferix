@@ -29,3 +29,6 @@ def get_chatml_tmpl() -> PromptTemplate:
         return prompt
 
     return PromptTemplate(fn, ["<|im_start|>", "<|im_end|>"])
+
+
+chatml_tmpl = get_chatml_tmpl()

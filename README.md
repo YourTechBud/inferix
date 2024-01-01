@@ -6,6 +6,7 @@ Inferix is a wrapper on top of [Ollama](https://ollama.ai/). It aims to expose a
 
 1. OpenAI compatible RestAPI on top of Ollama.
 2. LLM powered function calling.
+3. Ability to stream response laterally.
 
 ## Table of Contents
 
@@ -25,7 +26,7 @@ To install and run Inferix, follow these steps:
 To start Inferix, run the following command:
 
 ```bash
-poetry run python inferix/app.py
+poetry run start
 ```
 
 - Open [http://localhost:8000/docs](http://localhost:8000/docs) to open swagger ui

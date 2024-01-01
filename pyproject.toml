@@ -4,14 +4,26 @@ version = "0.1.0"
 description = ""
 authors = ["Noorain Panjwani <noorain.panjwani@gmail.com>"]
 readme = "README.md"
+packages = [
+  { include = "app.py", from = "src" },
+  { include = "clients", from = "src" },
+  { include = "models", from = "src" },
+  { include = "modules", from = "src" },
+  { include = "utils", from = "src" },
+]
+
+[tool.poetry.scripts]
+start = "app:start"
 
 [tool.poetry.dependencies]
 python = "^3.11"
 fastapi = "^0.108.0"
-uvicorn = {extras = ["standard"], version = "^0.25.0"}
+uvicorn = { extras = ["standard"], version = "^0.25.0" }
 pydantic = "^2.5.3"
-aiohttp = {extras = ["speedups"], version = "^3.9.1"}
+aiohttp = { extras = ["speedups"], version = "^3.9.1" }
 jinja2 = "^3.1.2"
+redis = {extras = ["hiredis"], version = "^5.0.1"}
+sse-starlette = "^1.8.2"
 
 
 [build-system]
