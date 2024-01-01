@@ -127,7 +127,7 @@ async def handle_infer(req: RunInferenceRequest) -> RunInferenceResponse:
                 # Push to redis
                 # TODO: Add a debouncing logic to avoid spamming redis
                 # Update: Deboucing is probably not needed as this doesn't add any noticable latency to the response
-                key_name = f"inferix:llm:{req.context.id}:{req.context.name}"
+                key_name = f"inferix:llm:result:{req.context.id}:{req.context.key}"
                 hash_map = {
                     "done": str(chunk.done),
                     "response": response_text,
@@ -203,7 +203,25 @@ async def handle_infer(req: RunInferenceRequest) -> RunInferenceResponse:
         # Return the response
         return res
 
-async def handle_delete_conversation(ctx_id: str, key: str) -> StandardResponse:
+
+async def handle_delete_conversations_by_context(ctx_id: str) -> StandardResponse:
+    # This is the key we'll use to retrieve the result
+    key_name = f"inferix:llm:conversation:{ctx_id}:*"
+
+    # Get the redis client
+    redis_client = await RedisClient.get_client()
+
+    # Scan all the keys which match the pattern
+    keys = redis_client.scan_iter(match=key_name)
+
+    # Delete the keys
+    async for key in keys:
+        await redis_client.delete(key)
+
+    return StandardResponse(message=f"Deleted conversations for {ctx_id}")
+
+
+async def handle_delete_conversation_by_key(ctx_id: str, key: str) -> StandardResponse:
     # This is the key we'll use to retrieve the result
     key_name = f"inferix:llm:conversation:{ctx_id}:{key}"
 

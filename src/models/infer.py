@@ -7,7 +7,7 @@ from .openai import ChatCompletionFunctions, ChatCompletionRequestMessage, Creat
 
 class RunInferenceContext(BaseModel):
     id: str
-    name: str
+    key: str
 
 
 class AddTextInstruction(BaseModel):
@@ -18,6 +18,9 @@ class AddTextInstruction(BaseModel):
 class ConversationOptions(BaseModel):
     # Store key will add the inference response to the conversation history
     store_key: Optional[str] = None
+
+    # Store entire history will store the entire conversation history overwriting the previous one
+    store_entire_history: Optional[bool] = False # TODO: Implement this
 
     # Load key will load the conversation from the conversation history
     load_key: Optional[str] = None
@@ -38,7 +41,7 @@ class RunInferenceInstructions(BaseModel):
 
 
 class RunInferenceRequest(BaseModel):
-    context: RunInferenceContext = RunInferenceContext(id="default", name="default")
+    context: RunInferenceContext = RunInferenceContext(id="default", key="default")
     messages: List[ChatCompletionRequestMessage]
     model: str
     num_ctx: int = 4096
