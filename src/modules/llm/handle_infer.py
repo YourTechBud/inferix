@@ -1,11 +1,10 @@
 import json
-from math import log
 from clients.redis import RedisClient
 from fastapi import HTTPException
 
 from models.http import StandardResponse
 from models.infer import RunInferenceInstructions, RunInferenceRequest, RunInferenceResponse
-from models.openai import CompletionUsage
+from models.openai import ChatCompletionRequestMessage, CompletionUsage
 from utils.logger import logger
 
 from .types import OllamaRequest, OllamaRequestOptions
@@ -17,10 +16,59 @@ from .prompts import chatml_tmpl
 async def handle_infer(req: RunInferenceRequest) -> RunInferenceResponse:
     # We don't support streaming for now
     if req.stream:
-        raise HTTPException(status_code=501, detail=StandardResponse(message="Streaming is not supported").to_json())
+        raise HTTPException(status_code=501, detail=StandardResponse(message="Streaming is not supported. Consider using lateral streaming instead.").to_json())
 
     if req.instructions == None:
         req.instructions = RunInferenceInstructions()
+
+    # Number of messages must be 2 when using conversation instruction. The role of the first message must be system
+    # while the role of the second message must be user
+    if req.instructions.conversation is not None:
+        if len(req.messages) != 2:
+            raise HTTPException(
+                status_code=400,
+                detail=StandardResponse(message="Conversation instruction requires exactly 2 messages").to_json(),
+            )
+
+        if req.messages[0].role != "system":
+            raise HTTPException(
+                status_code=400,
+                detail=StandardResponse(message="First message must be system").to_json(),
+            )
+
+        if req.messages[1].role != "user":
+            raise HTTPException(
+                status_code=400,
+                detail=StandardResponse(message="Second message must be user").to_json(),
+            )
+
+    # Check if we need to load conversation history
+    if req.instructions.conversation is not None and req.instructions.conversation.load_key is not None:
+        # Load the conversation from redis
+        key_name = f"inferix:llm:conversation:{req.context.id}:{req.instructions.conversation.load_key}"
+        r = RedisClient.get_client()
+        conversation = await r.zrange(key_name, 0, -1)  # type: ignore
+
+        # Print warning if conversation is empty
+        if len(conversation) == 0:
+            logger.warning(f"Conversation at {key_name} is empty")
+
+        # Time to add this conversation to the messages between index 0 and 1
+        for i, c in enumerate(conversation):
+            # Split the message into role and content
+            role, content = c.split(":::")
+
+            # Check if value of role is euqal to current assitant. We will store the message with role "user" if it isn't
+            role = "assistant" if role == req.instructions.conversation.assistant_name else "user"
+
+            # Add the message
+            req.messages.insert(
+                1 + i,
+                ChatCompletionRequestMessage(
+                    content=content,
+                    role=role,
+                ),
+            )
 
     # Add functions as a system prompt if needed
     add_message_for_fn_call(req.functions, req.messages)
@@ -114,6 +162,26 @@ async def handle_infer(req: RunInferenceRequest) -> RunInferenceResponse:
         except json.JSONDecodeError:
             # We want to retry inference if the response was not JSON serializable
             continue
+
+        # Check if we need to store the conversation
+        if req.instructions.conversation is not None and req.instructions.conversation.store_key is not None:
+            conversation_text = response_text
+
+            # Check if we need to add a prefix
+            if req.instructions.add_prefix is not None and not req.instructions.add_prefix.include_in_output:
+                conversation_text = prefix_text + conversation_text
+
+            # Check if we need to add a suffix
+            if req.instructions.add_suffix is not None and not req.instructions.add_suffix.include_in_output:
+                conversation_text = conversation_text + suffix_text
+
+            # Push the user prompt and assistant response to redis
+            # For the user message, we'll get the content of the last message since that is the message that was sent by the user
+            key_name = f"inferix:llm:conversation:{req.context.id}:{req.instructions.conversation.store_key}"
+            logger.info(f"Storing conversation at {key_name}")
+            r = RedisClient.get_client()
+            await RedisClient.append_to_sorted_set(key_name, f"user:::{req.messages[len(req.messages) -1].content}")
+            await RedisClient.append_to_sorted_set(key_name, f"{req.instructions.conversation.assistant_name}:::{conversation_text}")
 
         # Prepare usage object
         usage: CompletionUsage = CompletionUsage(

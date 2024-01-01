@@ -15,12 +15,26 @@ class AddTextInstruction(BaseModel):
     include_in_output: bool = True
 
 
+class ConversationOptions(BaseModel):
+    # Store key will add the inference response to the conversation history
+    store_key: Optional[str] = None
+
+    # Load key will load the conversation from the conversation history
+    load_key: Optional[str] = None
+
+    # Assistant is used to determine how each message needs to be loaded.
+    # Messages with the assitant will be passed with role "assistant" while other will be
+    # passed with role "user"
+    assistant_name: str = "default"
+
+
 class RunInferenceInstructions(BaseModel):
-    force_json: Optional[bool] = False
-    conversation_key: Optional[str] = None
+    force_json: Optional[bool] = False  # TODO: Implement this
+    conversation: Optional[ConversationOptions] = None
     add_prefix: Optional[AddTextInstruction] = None
     add_suffix: Optional[AddTextInstruction] = None
     enable_lateral_stream: Optional[bool] = False
+    check_for_dedup: bool = False  # TODO: Implement this
 
 
 class RunInferenceRequest(BaseModel):
