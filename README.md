@@ -6,7 +6,8 @@ Inferix is a wrapper on top of [Ollama](https://ollama.ai/). It aims to expose a
 
 1. OpenAI compatible RestAPI on top of Ollama.
 2. LLM powered function calling.
-3. Ability to stream response laterally.
+3. Streaming response laterally.
+4. Maintaining conversation history like [AutoGen](https://github.com/microsoft/autogen) on the server.
 
 ## Table of Contents
 
