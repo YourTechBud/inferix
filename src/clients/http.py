@@ -24,6 +24,21 @@ class HttpClient:
             cls.aiohttp_client = None
 
     @classmethod
+    async def get(cls, url: str) -> str:
+        client = cls.get_client()
+
+        async with client.get(url) as response:
+            if response.status != 200:
+                raise HTTPException(
+                    status_code=response.status,
+                    detail=StandardResponse(message=(await response.json())["error"]).to_json(),
+                )
+
+            result = await response.text()
+
+        return result
+
+    @classmethod
     async def post(cls, url: str, data: str) -> str:
         client = cls.get_client()
 

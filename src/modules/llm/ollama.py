@@ -1,5 +1,6 @@
 from typing import AsyncGenerator
 from fastapi import HTTPException
+from models.list_models import ListModelsResponse
 from pydantic import ValidationError
 
 from models.http import StandardResponse
@@ -14,8 +15,8 @@ async def call_ollama(req: OllamaRequest):
         raw = await HttpClient.post("http://localhost:11434/api/generate", req.to_json())
         res = OllamaResponse.model_validate_json(raw)
         
-        # Remove the weird ': ' prefix that mistral keeps giving us.
-        if res.response.startswith(":"):
+        # Remove the weird ':' and '>' prefix that mistral keeps giving us.
+        if res.response.startswith(":") or res.response.startswith(">"):
             res.response = res.response[1:]
         res.response = res.response.lstrip()
         
@@ -45,6 +46,16 @@ async def call_ollama_stream(req: OllamaRequest) -> AsyncGenerator[OllamaRespons
 
             # Now we can yield the response
             yield res
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=500,
+            detail=StandardResponse(message=f"Invalid response from Ollama: {e}", error=e.errors()).to_json(),
+        )
+
+async def list_models() -> ListModelsResponse:
+    try:
+        raw = await HttpClient.get("http://localhost:11434/api/tags")
+        return ListModelsResponse.model_validate_json(raw)
     except ValidationError as e:
         raise HTTPException(
             status_code=500,

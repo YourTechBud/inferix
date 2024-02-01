@@ -1,5 +1,7 @@
 from typing import List
 from fastapi import APIRouter, Request
+from models.list_models import ListModelsResponse
+from modules.llm.handle_list_models import handle_list_models
 from sse_starlette import EventSourceResponse
 
 from models.http import StandardResponse
@@ -46,3 +48,14 @@ async def delete_infer_stream_state_by_context(ctx_id: str) -> StandardResponse:
 @router.delete("/infer/streams/{ctx_id}/{key}", response_model_exclude_none=True)
 async def delete_infer_stream_state_by_key(ctx_id: str, key: str) -> StandardResponse:
     return await handle_delete_lateral_stream_state_by_key(ctx_id, key)
+
+
+@router.delete("/infer/contexts/{ctx_id}", response_model_exclude_none=True)
+async def delete_infer_context(ctx_id: str) -> StandardResponse:
+    await handle_delete_conversations_by_context(ctx_id)
+    return await handle_delete_lateral_stream_state_by_context(ctx_id)
+
+
+@router.get("/models/list", response_model_exclude_none=True)
+async def list_models() -> ListModelsResponse:
+    return await handle_list_models()
