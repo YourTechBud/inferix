@@ -2,11 +2,20 @@ import argparse
 import uvicorn
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from modules.llm.routes import router as llm_router
 from clients import create_clients, destroy_clients
 
 app = FastAPI(title="Inferix", description="OpenAI compatible API with extra goodies.", on_startup=[create_clients], on_shutdown=[destroy_clients], logger=True)
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(llm_router)
 
