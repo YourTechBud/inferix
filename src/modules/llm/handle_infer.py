@@ -10,7 +10,7 @@ from utils.logger import logger
 from .types import OllamaRequest, OllamaRequestOptions
 from .helpers import add_message_for_fn_call, prepare_chat_completion_message, sanitize_json_text, to_unix_timestamp
 from .ollama import call_ollama_stream
-from .prompts import chatml_tmpl
+from .prompts import get_prompt
 
 
 async def handle_infer(req: RunInferenceRequest) -> RunInferenceResponse:
@@ -78,7 +78,7 @@ async def handle_infer(req: RunInferenceRequest) -> RunInferenceResponse:
         req.stream = True
 
     # First prepare the prompt
-    raw_prompt = chatml_tmpl.get_prompt(req.messages)
+    raw_prompt = get_prompt(req.model, req.messages)
 
     # Make the request body for api call
     ollama_request_options = OllamaRequestOptions()
@@ -134,6 +134,7 @@ async def handle_infer(req: RunInferenceRequest) -> RunInferenceResponse:
                 }
                 r = RedisClient.get_client()
                 await r.hset(key_name, mapping=hash_map)  # type: ignore
+                await r.expire(key_name, 60 * 10) # Expire in 10 minutes
 
             # Check if stream is done
             if chunk.done:

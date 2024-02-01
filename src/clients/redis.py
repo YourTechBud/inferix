@@ -60,6 +60,7 @@ class RedisClient:
 
         # Now lets add the new member with a score of max_score + 1
         await client.zadd(key, {value: max_score + 1}, nx=True)
+        await client.expire(key, 60 * 10) # Expire in 10 minutes
 
     @classmethod
     async def store_as_sorted_set(cls, key: str, values: list[str]) -> None:
@@ -80,6 +81,7 @@ class RedisClient:
 
         # Let's add the values as a sorted set to redis
         await client.zadd(key, {v: i + 1 for i, v in enumerate(values)})
+        await client.expire(key, 60 * 10) # Expire in 10 minutes
 
 
 async def create_redis_client() -> None:

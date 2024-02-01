@@ -7,7 +7,7 @@ from models.openai import CreateChatCompletionRequest, CreateChatCompletionRespo
 from modules.llm.types import OllamaRequest, OllamaRequestOptions
 from .helpers import add_message_for_fn_call, prepare_chat_completion_message, sanitize_json_text, to_unix_timestamp
 from .ollama import call_ollama
-from .prompts import chatml_tmpl
+from .prompts import get_prompt
 
 
 async def handle_completions(req: CreateChatCompletionRequest) -> CreateChatCompletionResponse:
@@ -29,7 +29,7 @@ async def handle_completions(req: CreateChatCompletionRequest) -> CreateChatComp
     #     opts.top_p = req.top_p
 
     # First prepare the prompt
-    raw_prompt = chatml_tmpl.get_prompt(req.messages)
+    raw_prompt = get_prompt(req.model, req.messages)
 
     # Make the request body for api call
     ollama_request_options = OllamaRequestOptions()
