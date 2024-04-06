@@ -23,9 +23,9 @@ impl Ollama {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct OllamaRequest {
-    pub model: String,
-    pub prompt: String,
+pub struct OllamaRequest<'a> {
+    pub model: &'a str,
+    pub prompt: &'a str,
     pub raw: bool,
     pub stream: Option<bool>,
     pub options: serde_json::Value,
@@ -47,26 +47,32 @@ pub struct OllamaResponse {
 
 #[async_trait]
 impl Driver for Ollama {
-    async fn call(&self, req: Request, options: RequestOptions) -> Result<Response, AppError> {
+    async fn call(&self, req: &Request, options: &RequestOptions) -> Result<Response, AppError> {
         // Let's first get the prompt
-        let prompt = prompts::get_prompt(options.prompt_tmpl, req.messages)?;
+        let prompt = prompts::get_prompt(&options.prompt_tmpl, &req.messages)?;
 
         // Prepare the request
         let req = OllamaRequest {
-            model: req.model,
-            prompt: prompt,
+            model: &req.model,
+            prompt: &prompt,
             raw: true,
             stream: Some(false),
             options: utils::merge_objects(
-                serde_json::json!({
+                &serde_json::json!({
                     "top_p": options.top_p,
                     "top_k": options.top_k,
                     "num_ctx": options.num_ctx,
                     "temperature": options.temperature,
                 }),
-                options.driver_options,
+                &options.driver_options,
             ),
         };
+
+        println!("====================================");
+        println!("Request Prompt:");
+        println!("{}", prompt);
+        println!("====================================");
+
 
         // Call the Ollama API
         let client = Client::new();
@@ -101,6 +107,10 @@ impl Driver for Ollama {
             res.response = res.response[1..].to_string();
         }
 
+        println!("Response:");
+        println!("{}", res.response);
+        println!("====================================");
+
         return Ok(Response {
             model: res.model,
             created_at: res.created_at,
@@ -113,6 +123,7 @@ impl Driver for Ollama {
                 eval_count: res.eval_count,
                 eval_duration: res.eval_duration,
             },
+            fn_call: None,
         });
     }
 }
@@ -144,9 +155,10 @@ mod test {
                     content: Some("What's the capital of British Columbia".to_string()),
                 },
             ],
+            tools: None,
         };
 
-        let res = driver.call(req, RequestOptions::default()).await.unwrap();
+        let res = driver.call(&req, &RequestOptions::default()).await.unwrap();
         assert_eq!(res.model, "mistral-openhermes");
     }
 }

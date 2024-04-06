@@ -2,7 +2,10 @@ use axum::Json;
 
 use crate::utils;
 
-use super::types::{AppError, StandardErrorResponse};
+use super::{
+    drivers,
+    types::{AppError, StandardErrorResponse},
+};
 use types::*;
 
 pub async fn handle_chat_completion(
@@ -26,9 +29,25 @@ pub async fn handle_chat_completion(
         })
         .collect();
 
+    let tools = if let Some(functions) = req.functions {
+        Some(
+            functions
+                .iter()
+                .map(|f| crate::llm::drivers::Tool {
+                    name: f.name.clone(),
+                    description: f.description.clone(),
+                    args: f.parameters.additional_properties.clone(),
+                    tool_type: crate::llm::drivers::ToolType::Function,
+                })
+                .collect(),
+        )
+    } else {
+        None
+    };
+
     // Run the inference
     let res = crate::llm::drivers::run_inference(
-        crate::llm::drivers::Request::new(req.model, messages),
+        crate::llm::drivers::Request::new(req.model, messages, tools),
         crate::llm::drivers::RequestOptions::new(req.top_p, None, req.max_tokens, req.temperature),
     )
     .await?;
@@ -37,7 +56,7 @@ pub async fn handle_chat_completion(
     let res = CreateChatCompletionResponse {
         id: "inferix".to_string(),
         created: utils::convert_to_unix_timestamp(&res.created_at),
-        model: res.model,
+        model: res.model.clone(),
         object: "chat.completion".to_string(),
         system_fingerprint: "inferix".to_string(),
         usage: CompletionUsage {
@@ -46,22 +65,38 @@ pub async fn handle_chat_completion(
             total_tokens: res.stats.eval_count.unwrap_or(0)
                 + res.stats.prompt_eval_count.unwrap_or(0),
         },
-        choices: vec![prepare_chat_completion_message(res.response.as_str())],
+        choices: vec![prepare_chat_completion_message(&res)],
     };
 
     return Ok(Json(res));
 }
 
-fn prepare_chat_completion_message(response: &str) -> ResponseChoice {
+fn prepare_chat_completion_message(response: &drivers::Response) -> ResponseChoice {
+    // Check if the response contains the string `FUNC_CALL`
+    let fn_call = if let Some(fn_call) = &response.fn_call {
+        Some(FunctionCall {
+            name: fn_call.name.clone(),
+            arguments: serde_json::to_string(&fn_call.parameters).unwrap(),
+        })
+    } else {
+        None
+    };
+
+    let finish_reason = if fn_call.is_some() {
+        FinishReason::FunctionCall
+    } else {
+        FinishReason::Stop
+    };
+
     return ResponseChoice {
         message: ChatCompletionResponseMessage {
-            content: Some(response.to_string()),
+            content: Some(response.response.to_string()),
             role: "assistant".to_string(),
-            function_call: None,
+            function_call: fn_call,
             tool_calls: None,
         },
         index: 0,
-        finish_reason: FinishReason::Stop,
+        finish_reason: finish_reason,
     };
 }
 

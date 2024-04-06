@@ -6,7 +6,7 @@ use crate::llm::{prompts, types::AppError};
 
 #[async_trait]
 pub trait Driver: Send + Sync + Debug {
-    async fn call(&self, req: Request, options: RequestOptions) -> Result<Response, AppError>;
+    async fn call(&self, req: &Request, options: &RequestOptions) -> Result<Response, AppError>;
 }
 
 #[derive(Serialize)]
@@ -14,13 +14,15 @@ pub trait Driver: Send + Sync + Debug {
 pub struct Request {
     pub model: String,
     pub messages: Vec<RequestMessage>,
+    pub tools: Option<Vec<Tool>>,
 }
 
 impl Request {
-    pub fn new(model: String, messages: Vec<RequestMessage>) -> Self {
+    pub fn new(model: String, messages: Vec<RequestMessage>, tools: Option<Vec<Tool>>) -> Self {
         return Request {
             model: model,
             messages: messages,
+            tools: tools,
         };
     }
 }
@@ -29,6 +31,21 @@ impl Request {
 pub struct RequestMessage {
     pub role: String,
     pub content: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct Tool {
+    pub name: String,
+    pub description: Option<String>,
+    pub args: serde_json::Value,
+    #[serde(rename = "type")]
+    pub tool_type: ToolType,
+}
+
+#[derive(Serialize)]
+pub enum ToolType {
+    #[serde(rename = "function")]
+    Function,
 }
 
 pub struct RequestOptions {
@@ -78,6 +95,13 @@ pub struct Response {
     pub created_at: String,
     pub response: String,
     pub stats: ResponseStats,
+    pub fn_call: Option<FunctionCall>,
+}
+
+#[derive(serde::Deserialize)]
+pub struct FunctionCall {
+    pub name: String,
+    pub parameters: serde_json::Value,
 }
 
 pub struct ResponseStats {

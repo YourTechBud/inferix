@@ -45,8 +45,8 @@ pub fn init() {
 }
 
 pub fn get_prompt(
-    prompt_tmpl_name: String,
-    messages: Vec<RequestMessage>,
+    prompt_tmpl_name: &str,
+    messages: &Vec<RequestMessage>,
 ) -> Result<String, AppError> {
     let prompts_map =
         PROMPT_TEMPLATES
@@ -57,7 +57,7 @@ pub fn get_prompt(
             )))?;
 
     let prompt_tmpl = prompts_map
-        .get(&prompt_tmpl_name)
+        .get(prompt_tmpl_name)
         .ok_or(AppError::BadRequest(StandardErrorResponse::new(
             format!("Prompt template {} not found", prompt_tmpl_name),
             "prompt_template_not_found".to_string(),
