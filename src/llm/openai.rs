@@ -29,14 +29,27 @@ pub async fn handle_chat_completion(
         })
         .collect();
 
-    let tools = if let Some(functions) = req.functions {
+    // Select the tools provided from the `tools` or `functions` field in the request
+    // We will give priority to the `tools` field since the `functions` field is deprecated.
+    // TODO: Make this more efficient and look good
+    let mut tool_selection = types::ToolSelection::None;
+
+    let mut tools: Option<Vec<drivers::Tool>> = if let Some(tools) = req.tools {
+        tool_selection = types::ToolSelection::Tools;
         Some(
-            functions
+            tools
                 .iter()
-                .map(|f| crate::llm::drivers::Tool {
-                    name: f.name.clone(),
-                    description: f.description.clone(),
-                    args: f.parameters.additional_properties.clone(),
+                .map(|t| crate::llm::drivers::Tool {
+                    name: t.function.name.clone(),
+                    description: t.function.description.clone(),
+                    args: t
+                        .function
+                        .parameters
+                        .clone()
+                        .unwrap_or(FunctionParameters {
+                            additional_properties: serde_json::json!({}),
+                        })
+                        .additional_properties,
                     tool_type: crate::llm::drivers::ToolType::Function,
                 })
                 .collect(),
@@ -44,6 +57,24 @@ pub async fn handle_chat_completion(
     } else {
         None
     };
+
+    // Only checks if any functions are provided if tools is still None
+    if tools.is_none() {
+        if let Some(functions) = req.functions {
+            tool_selection = types::ToolSelection::Function;
+            tools = Some(
+                functions
+                    .iter()
+                    .map(|f| crate::llm::drivers::Tool {
+                        name: f.name.clone(),
+                        description: f.description.clone(),
+                        args: f.parameters.additional_properties.clone(),
+                        tool_type: crate::llm::drivers::ToolType::Function,
+                    })
+                    .collect(),
+            )
+        }
+    }
 
     // Run the inference
     let res = crate::llm::drivers::run_inference(
@@ -65,22 +96,45 @@ pub async fn handle_chat_completion(
             total_tokens: res.stats.eval_count.unwrap_or(0)
                 + res.stats.prompt_eval_count.unwrap_or(0),
         },
-        choices: vec![prepare_chat_completion_message(&res)],
+        choices: vec![prepare_chat_completion_message(&res, tool_selection)],
     };
 
     return Ok(Json(res));
 }
 
-fn prepare_chat_completion_message(response: &drivers::Response) -> ResponseChoice {
-    // Check if the response contains the string `FUNC_CALL`
-    let fn_call = if let Some(fn_call) = &response.fn_call {
-        Some(FunctionCall {
-            name: fn_call.name.clone(),
-            arguments: serde_json::to_string(&fn_call.parameters).unwrap(),
-        })
-    } else {
-        None
-    };
+fn prepare_chat_completion_message(
+    response: &drivers::Response,
+    tool_selection: types::ToolSelection,
+) -> ResponseChoice {
+    // Prepare the function call and tools varibles
+    let mut fn_call = None;
+    let mut tools = None;
+
+    match tool_selection {
+        types::ToolSelection::Function => {
+            if let Some(fc) = &response.fn_call {
+                fn_call = Some(types::FunctionCall {
+                    name: fc.name.clone(),
+                    arguments: serde_json::to_string(&fc.parameters).unwrap(),
+                });
+            }
+        }
+
+        types::ToolSelection::Tools => {
+            if let Some(tc) = &response.fn_call {
+                tools = Some(vec![ChatCompletionMessageToolCall {
+                    id: tc.name.clone(),
+                    tool_type: types::ToolType::Function,
+                    function: FunctionCall {
+                        name: tc.name.clone(),
+                        arguments: serde_json::to_string(&tc.parameters).unwrap(),
+                    },
+                }])
+            }
+        }
+
+        _ => {}
+    }
 
     let finish_reason = if fn_call.is_some() {
         FinishReason::FunctionCall
@@ -93,7 +147,7 @@ fn prepare_chat_completion_message(response: &drivers::Response) -> ResponseChoi
             content: Some(response.response.to_string()),
             role: "assistant".to_string(),
             function_call: fn_call,
-            tool_calls: None,
+            tool_calls: tools,
         },
         index: 0,
         finish_reason: finish_reason,
@@ -102,6 +156,12 @@ fn prepare_chat_completion_message(response: &drivers::Response) -> ResponseChoi
 
 pub mod types {
     use serde::{Deserialize, Serialize};
+
+    pub enum ToolSelection {
+        None,
+        Tools,
+        Function,
+    }
 
     /******************************************************************/
     /***********************  Types for Request  **********************/
@@ -157,24 +217,10 @@ pub mod types {
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct ChatCompletionMessageToolCall {
-        id: String,
+        pub id: String,
         #[serde(rename = "type")]
-        type_: String,
-        function: FunctionCall,
-    }
-
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct ChatCompletionMessageToolCalls {
-        pub items: Vec<ChatCompletionMessageToolCall>,
-    }
-
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct ChatCompletionRequestAssistantMessage {
-        pub content: Option<String>,
-        pub role: String,
-        pub name: Option<String>,
-        pub tool_calls: Option<ChatCompletionMessageToolCalls>,
-        pub function_call: Option<FunctionCall>,
+        pub tool_type: ToolType,
+        pub function: FunctionCall,
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -197,12 +243,13 @@ pub mod types {
         pub role: String,
         pub name: Option<String>,
         pub tool_call_id: Option<String>,
-        pub tool_calls: Option<ChatCompletionMessageToolCalls>,
+        pub tool_calls: Option<Vec<ChatCompletionMessageToolCall>>,
         pub function_call: Option<FunctionCall>,
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub enum ToolType {
+        #[serde(rename = "function")]
         Function,
     }
 
@@ -227,7 +274,8 @@ pub mod types {
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct ChatCompletionTool {
-        pub r#type: ToolType,
+        #[serde(rename = "type")]
+        pub tool_type: ToolType,
         pub function: FunctionObject,
     }
 
@@ -295,7 +343,7 @@ pub mod types {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub content: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
-        pub tool_calls: Option<ChatCompletionMessageToolCalls>,
+        pub tool_calls: Option<Vec<ChatCompletionMessageToolCall>>,
         pub role: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         pub function_call: Option<FunctionCall>,
