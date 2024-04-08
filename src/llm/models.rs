@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use once_cell::sync::OnceCell;
 
-use super::types::{AppError, StandardErrorResponse};
+use crate::http::{AppError, StandardErrorResponse};
 
 #[derive(Debug)]
 pub struct Model {

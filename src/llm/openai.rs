@@ -1,11 +1,11 @@
 use axum::Json;
 
-use crate::utils;
-
-use super::{
-    drivers,
-    types::{AppError, StandardErrorResponse},
+use crate::{
+    http::{AppError, StandardErrorResponse},
+    llm::drivers,
+    utils,
 };
+
 use types::*;
 
 pub async fn handle_chat_completion(

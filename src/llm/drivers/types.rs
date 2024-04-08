@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use serde::Serialize;
 use std::fmt::Debug;
 
-use crate::llm::{prompts, types::AppError};
+use crate::{http::AppError, llm::prompts};
 
 #[async_trait]
 pub trait Driver: Send + Sync + Debug {

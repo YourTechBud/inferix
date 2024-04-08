@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 use once_cell::sync::OnceCell;
 
-use super::{
-    drivers::RequestMessage,
-    types::{AppError, StandardErrorResponse},
+use crate::{
+    http::{AppError, StandardErrorResponse},
+    llm::drivers::RequestMessage,
 };
 
 pub const CHATML: &str = "chatml";

@@ -1,5 +1,4 @@
 pub mod routes;
-pub mod types;
 
 mod drivers;
 mod models;

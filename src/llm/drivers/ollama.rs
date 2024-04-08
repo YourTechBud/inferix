@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::option::Option;
 
 use crate::{
-    llm::{prompts, types::StandardErrorResponse},
+    http::{AppError, StandardErrorResponse},
+    llm::prompts,
     utils,
 };
 
@@ -72,7 +73,6 @@ impl Driver for Ollama {
         println!("Request Prompt:");
         println!("{}", prompt);
         println!("====================================");
-
 
         // Call the Ollama API
         let client = Client::new();

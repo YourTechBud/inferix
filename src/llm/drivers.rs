@@ -6,7 +6,7 @@ pub use types::*;
 
 use crate::utils;
 
-use super::types::{AppError, StandardErrorResponse};
+use crate::http::{AppError, StandardErrorResponse};
 
 pub static DRIVER: OnceCell<Box<dyn Driver>> = OnceCell::new();
 
