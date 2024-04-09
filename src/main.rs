@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, path::PathBuf};
 
 use axum::{
     extract::Request,
@@ -6,13 +6,33 @@ use axum::{
     response::Response,
     Router,
 };
+use axum_server::tls_rustls::RustlsConfig;
 use clap::Parser;
 use once_cell::sync::OnceCell;
 use tower::ServiceBuilder;
 
+// TODO: Move this to a separate module
 #[derive(Debug, Parser)]
 #[command(version, about, long_about = None)]
 struct Cli {
+    /************************************************/
+    /****************** TLS Setting *****************/
+    /************************************************/
+    #[arg(long)]
+    tls: bool,
+
+    #[arg(long)]
+    tls_port: Option<u16>,
+
+    #[arg(long, value_name = "FILE")]
+    tls_cert: Option<PathBuf>,
+
+    #[arg(long, value_name = "FILE")]
+    tls_key: Option<PathBuf>,
+
+    /************************************************/
+    /*************** JWT Authentication *************/
+    /************************************************/
     #[arg(long)]
     jwt: bool,
 
@@ -52,9 +72,35 @@ async fn main() {
                 .layer(middleware::from_fn(jwt_auth_middleware)),
         );
 
+    // TODO: Make this cleaner
+    let cli = CLI_ARGS.get().unwrap();
+    if cli.tls {
+        tokio::spawn(start_tls_sever(cli, app.clone()));
+    }
+
     // Start the server
+    println!("Starting server on 4386");
     let listener = tokio::net::TcpListener::bind("0.0.0.0:4386").await.unwrap();
     axum::serve(listener, app).await.unwrap();
+}
+
+async fn start_tls_sever(cli: &Cli, app: Router) {
+    // Configure certificate and private key used by https
+    let config =
+        RustlsConfig::from_pem_file(cli.tls_cert.clone().unwrap(), cli.tls_key.clone().unwrap())
+            .await
+            .unwrap();
+
+    // Configure the port
+    let port = cli.tls_port.unwrap_or(4388);
+    println!("Starting server on {}", port);
+
+    // Start the server
+    let addr = std::net::SocketAddr::from(([0, 0, 0, 0], port));
+    axum_server::bind_rustls(addr, config)
+        .serve(app.into_make_service())
+        .await
+        .unwrap();
 }
 
 // TODO: Move this to a middleware module
@@ -66,15 +112,15 @@ async fn jwt_auth_middleware(
 
     if cli.jwt {
         // Check if the request has a valid JWT token
-        let token = req
-            .headers()
-            .get("authorization")
-            .ok_or(inferix::http::AppError::Unauthenticated(
-                "No token provided in request".to_string(),
-            ))?;
-        let token = token
-            .to_str()
-            .map_err(|_| inferix::http::AppError::Unauthenticated("Invalid token provided".to_string()))?;
+        let token =
+            req.headers()
+                .get("authorization")
+                .ok_or(inferix::http::AppError::Unauthenticated(
+                    "No token provided in request".to_string(),
+                ))?;
+        let token = token.to_str().map_err(|_| {
+            inferix::http::AppError::Unauthenticated("Invalid token provided".to_string())
+        })?;
 
         // Strip the bearer prefix if it exists
         let token = token.strip_prefix("Bearer ").unwrap_or(token);
@@ -91,7 +137,10 @@ async fn jwt_auth_middleware(
             &validation,
         )
         .map_err(|e| {
-            return inferix::http::AppError::Unauthenticated(format!("Invalid token provided: {}", e));
+            return inferix::http::AppError::Unauthenticated(format!(
+                "Invalid token provided: {}",
+                e
+            ));
         })?;
     }
 
