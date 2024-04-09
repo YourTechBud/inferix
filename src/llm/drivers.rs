@@ -41,9 +41,12 @@ pub async fn run_inference(
             options.temperature = model_options.temperature;
         }
 
-        // Dont forget to load the driver options
+        // Dont forget to load the driver options and the prompt template
         if let Some(driver_options) = &model_options.driver_options {
             options.driver_options = driver_options.clone();
+        }
+        if let Some(prompt_tmpl) = &model.prompt_tmpl {
+            options.prompt_tmpl = prompt_tmpl.clone();
         }
     }
 

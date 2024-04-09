@@ -8,6 +8,7 @@ use crate::{
 };
 
 pub const CHATML: &str = "chatml";
+pub const MISTRAL: &str = "mistral";
 
 #[derive(Debug)]
 pub struct PrompTemplate {
@@ -38,6 +39,15 @@ pub fn init() {
             "chatml".to_string(),
             "{% for msg in messages %}<|im_start|>{{ msg.role }}\n{{ msg.content }}<|im_end|>\n{% endfor %}<|im_start|>assistant".to_string(),
             vec!["<|im_start|>".to_string(), "<|im_end|>".to_string()],
+        ),
+    );
+
+    m.insert(
+        "mistral".to_string(),
+        PrompTemplate::new(
+            "mistral".to_string(),
+            "[INST] {{ messages[0].content }}{% if messages | length == 2 %}\n\n{{messages[1].content}}{% endif %} [/INST]".to_string(),
+            vec!["[INST]".to_string(), "[/INST]".to_string()],
         ),
     );
 

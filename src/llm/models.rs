@@ -4,6 +4,8 @@ use once_cell::sync::OnceCell;
 
 use crate::http::{AppError, StandardErrorResponse};
 
+use super::prompts::MISTRAL;
+
 #[derive(Debug)]
 pub struct Model {
     pub driver: String,
@@ -43,6 +45,15 @@ pub fn init() {
             driver: "ollama".to_string(),
             default_options: Some(ModelOptions::default()),
             prompt_tmpl: None,
+        }),
+    );
+
+    m.insert(
+        "mixtral-8x7b:q3_K_M".to_string(),
+        Arc::new(Model {
+            driver: "ollama".to_string(),
+            default_options: Some(ModelOptions::default()),
+            prompt_tmpl: Some(MISTRAL.to_string()),
         }),
     );
 
