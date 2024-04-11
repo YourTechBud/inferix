@@ -16,7 +16,14 @@ use tower::ServiceBuilder;
 #[command(version, about, long_about = None)]
 struct Cli {
     /************************************************/
-    /****************** TLS Setting *****************/
+    /****************** HTTP Settings ***************/
+    /************************************************/
+    #[arg(long)]
+    #[arg(long, default_value = "4386")]
+    port: u16,
+
+    /************************************************/
+    /****************** TLS Settings ****************/
     /************************************************/
     #[arg(long)]
     tls: bool,
@@ -54,7 +61,7 @@ async fn main() {
 
     // Initialize the LLM driver
     // TODO: Load which drivers are required from the config file
-    inferix::llm::init();
+    inferix::init();
 
     // Setup the cors middleware
     // TODO: Allow users to modify the cors settings
@@ -66,6 +73,7 @@ async fn main() {
     // Start by creating a router
     let app = Router::new()
         .nest("/api/llm/v1", inferix::llm::routes::new())
+        .nest("/api/embeddings/v1", inferix::embedding::routes::new())
         .layer(
             ServiceBuilder::new()
                 .layer(cors)
@@ -79,8 +87,9 @@ async fn main() {
     }
 
     // Start the server
-    println!("Starting server on 4386");
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:4386").await.unwrap();
+    let addr = std::net::SocketAddr::from(([0, 0, 0, 0], cli.port));
+    println!("Starting server on {}", addr.port());
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
 
