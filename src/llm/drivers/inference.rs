@@ -1,28 +1,17 @@
-mod ollama;
-mod types;
+use crate::{
+    http::{AppError, StandardErrorResponse},
+    llm::types::{
+        FunctionCall, InferenceMessage, InferenceOptions, InferenceRequest, InferenceResponse, Tool,
+    },
+    utils,
+};
 
-use once_cell::sync::OnceCell;
-pub use types::*;
-
-use crate::utils;
-
-use crate::http::{AppError, StandardErrorResponse};
-
-pub static DRIVER: OnceCell<Box<dyn Driver>> = OnceCell::new();
-
-pub fn init() {
-    DRIVER
-        .set(Box::new(ollama::Ollama::new(
-            "localhost".to_string(),
-            "11434".to_string(),
-        )))
-        .unwrap();
-}
+use super::DRIVERS;
 
 pub async fn run_inference(
-    mut req: Request,
-    mut options: RequestOptions,
-) -> Result<Response, AppError> {
+    mut req: InferenceRequest,
+    mut options: InferenceOptions,
+) -> Result<InferenceResponse, AppError> {
     // Get the model
     let model = crate::llm::models::get_model(&req.model)?;
 
@@ -56,18 +45,27 @@ pub async fn run_inference(
     }
 
     // Get the driver from the drivers list
-    // TODO: Get the right driver based on the model
-    let driver = DRIVER
-        .get()
-        .ok_or(AppError::InternalServerError(StandardErrorResponse::new(
-            "Driver not initialized".to_string(),
-            "driver_not_initialized".to_string(),
-        )))?;
+    let drivers =
+        DRIVERS
+            .get()
+            .ok_or(AppError::InternalServerError(StandardErrorResponse::new(
+                "Drivers not initialized".to_string(),
+                "drivers_not_initialized".to_string(),
+            )))?;
+
+    // TODO: Check if the model is available in the drivers list during config load
+    let driver =
+        drivers
+            .get(&model.driver)
+            .ok_or(AppError::BadRequest(StandardErrorResponse::new(
+                "Driver not found".to_string(),
+                "driver_not_found".to_string(),
+            )))?;
 
     // TODO: Restrict the loop to a certain number of iterations
     loop {
         // Call the driver and run inference
-        let mut res = driver.call(&req, &options).await?;
+        let mut res = driver.run_inference(&req, &options).await?;
 
         // Lets start by cleaning up the output
         res.response = res.response.trim().to_string();
@@ -97,7 +95,7 @@ pub async fn run_inference(
     }
 }
 
-fn inject_fn_call(messages: Vec<RequestMessage>, functions: &Vec<Tool>) -> Vec<RequestMessage> {
+fn inject_fn_call(messages: Vec<InferenceMessage>, functions: &Vec<Tool>) -> Vec<InferenceMessage> {
     let mut content = "You may use the following FUNCTIONS in the response. Only use one function at a time. Give output in following OUTPUT_FORMAT in strict JSON if you want to call a function.\n\nFUNCTIONS:\n\n".to_string();
 
     for f in functions {
@@ -122,7 +120,7 @@ fn inject_fn_call(messages: Vec<RequestMessage>, functions: &Vec<Tool>) -> Vec<R
     // Return a new messages array with a new system message injected towards the end
     return messages
         .into_iter()
-        .chain(std::iter::once(RequestMessage {
+        .chain(std::iter::once(InferenceMessage {
             role: "system".to_string(),
             content: Some(content),
         }))

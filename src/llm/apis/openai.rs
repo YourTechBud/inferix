@@ -2,11 +2,50 @@ use axum::Json;
 
 use crate::{
     http::{AppError, StandardErrorResponse},
-    llm::drivers,
+    llm::{
+        self,
+        drivers::{self, embedding::create_embeddings},
+    },
     utils,
 };
 
 use types::*;
+
+pub async fn handle_embedding_request(
+    Json(req): Json<types::OpenAIEmbeddingRequest>,
+) -> Result<Json<types::OpenAIEmbeddingResponse>, AppError> {
+    let req = llm::types::EmbeddingRequest {
+        model: req.model,
+        trucate: None, // We will let the driver take care of this
+        inputs: req.input,
+    };
+
+    // Run the inference
+    let res = create_embeddings(req).await?;
+
+    // Let's prepare the response
+    // We gotta do it the hard way cause I don't know any better.
+    let mut data = Vec::with_capacity(res.data.len());
+    for embedding in res.data {
+        data.push(types::Embedding {
+            index: embedding.index,
+            embedding: embedding.embedding,
+            object: types::EmbeddingObject::Embedding,
+        });
+    }
+    let res = types::OpenAIEmbeddingResponse {
+        model: res.model,
+        data,
+        usage: types::Usage {
+            prompt_tokens: res.usage.prompt_tokens,
+            total_tokens: res.usage.total_tokens,
+        },
+        object: types::OpenAIEmbeddingResponseObject::List,
+    };
+
+    // Return the response
+    return Ok(Json(res));
+}
 
 pub async fn handle_chat_completion(
     Json(req): Json<CreateChatCompletionRequest>,
@@ -23,7 +62,7 @@ pub async fn handle_chat_completion(
     let messages = req
         .messages
         .iter()
-        .map(|m| crate::llm::drivers::RequestMessage {
+        .map(|m| llm::types::InferenceMessage {
             role: m.role.clone(),
             content: m.content.clone(),
         })
@@ -34,12 +73,12 @@ pub async fn handle_chat_completion(
     // TODO: Make this more efficient and look good
     let mut tool_selection = types::ToolSelection::None;
 
-    let mut tools: Option<Vec<drivers::Tool>> = if let Some(tools) = req.tools {
+    let mut tools: Option<Vec<llm::types::Tool>> = if let Some(tools) = req.tools {
         tool_selection = types::ToolSelection::Tools;
         Some(
             tools
                 .iter()
-                .map(|t| crate::llm::drivers::Tool {
+                .map(|t| llm::types::Tool {
                     name: t.function.name.clone(),
                     description: t.function.description.clone(),
                     args: t
@@ -50,7 +89,7 @@ pub async fn handle_chat_completion(
                             additional_properties: serde_json::json!({}),
                         })
                         .additional_properties,
-                    tool_type: crate::llm::drivers::ToolType::Function,
+                    tool_type: llm::types::ToolType::Function,
                 })
                 .collect(),
         )
@@ -65,11 +104,11 @@ pub async fn handle_chat_completion(
             tools = Some(
                 functions
                     .iter()
-                    .map(|f| crate::llm::drivers::Tool {
+                    .map(|f| llm::types::Tool {
                         name: f.name.clone(),
                         description: f.description.clone(),
                         args: f.parameters.additional_properties.clone(),
-                        tool_type: crate::llm::drivers::ToolType::Function,
+                        tool_type: llm::types::ToolType::Function,
                     })
                     .collect(),
             )
@@ -77,9 +116,9 @@ pub async fn handle_chat_completion(
     }
 
     // Run the inference
-    let res = crate::llm::drivers::run_inference(
-        crate::llm::drivers::Request::new(req.model, messages, tools),
-        crate::llm::drivers::RequestOptions::new(req.top_p, None, req.max_tokens, req.temperature),
+    let res = drivers::inference::run_inference(
+        llm::types::InferenceRequest::new(req.model, messages, tools),
+        llm::types::InferenceOptions::new(req.top_p, None, req.max_tokens, req.temperature),
     )
     .await?;
 
@@ -103,7 +142,7 @@ pub async fn handle_chat_completion(
 }
 
 fn prepare_chat_completion_message(
-    response: &drivers::Response,
+    response: &llm::types::InferenceResponse,
     tool_selection: types::ToolSelection,
 ) -> ResponseChoice {
     // Prepare the function call and tools varibles
@@ -125,7 +164,7 @@ fn prepare_chat_completion_message(
                 tools = Some(vec![ChatCompletionMessageToolCall {
                     id: tc.name.clone(),
                     tool_type: types::ToolType::Function,
-                    function: FunctionCall {
+                    function: types::FunctionCall {
                         name: tc.name.clone(),
                         arguments: serde_json::to_string(&tc.parameters).unwrap(),
                     },
@@ -156,6 +195,8 @@ fn prepare_chat_completion_message(
 
 pub mod types {
     use serde::{Deserialize, Serialize};
+
+    use crate::llm::types::EmbeddingInput;
 
     pub enum ToolSelection {
         None,
@@ -366,6 +407,49 @@ pub mod types {
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct CompletionUsage {
         pub completion_tokens: u64,
+        pub prompt_tokens: u64,
+        pub total_tokens: u64,
+    }
+
+    /******************************************************************/
+    /**********************  Types for Embedding  *********************/
+    /******************************************************************/
+
+    #[derive(Serialize, Deserialize)]
+    pub struct OpenAIEmbeddingRequest {
+        pub input: EmbeddingInput,
+        pub model: String,
+    }
+
+    #[derive(Serialize, Deserialize)]
+    pub struct OpenAIEmbeddingResponse {
+        pub model: Option<String>,
+        pub data: Vec<Embedding>,
+        pub usage: Usage,
+        pub object: OpenAIEmbeddingResponseObject,
+    }
+
+    #[derive(Serialize, Deserialize)]
+    pub enum OpenAIEmbeddingResponseObject {
+        #[serde(rename = "list")]
+        List,
+    }
+
+    #[derive(Serialize, Deserialize)]
+    pub struct Embedding {
+        pub index: u32,
+        pub embedding: Vec<f64>,
+        pub object: EmbeddingObject,
+    }
+
+    #[derive(Serialize, Deserialize)]
+    pub enum EmbeddingObject {
+        #[serde(rename = "embedding")]
+        Embedding,
+    }
+
+    #[derive(Serialize, Deserialize)]
+    pub struct Usage {
         pub prompt_tokens: u64,
         pub total_tokens: u64,
     }

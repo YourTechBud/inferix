@@ -1,19 +1,19 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 use once_cell::sync::OnceCell;
+use serde::Deserialize;
 
 use crate::http::{AppError, StandardErrorResponse};
 
-use super::prompts::MISTRAL;
-
-#[derive(Debug)]
-pub struct Model {
+#[derive(Debug, Deserialize)]
+pub struct ModelConfig {
+    pub name: String,
     pub driver: String,
     pub default_options: Option<ModelOptions>,
     pub prompt_tmpl: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 pub struct ModelOptions {
     pub top_p: Option<f64>,
     pub top_k: Option<i32>,
@@ -34,33 +34,24 @@ impl ModelOptions {
     }
 }
 
-pub static MODELS: OnceCell<HashMap<String, Arc<Model>>> = OnceCell::new();
+pub static MODELS: OnceCell<HashMap<String, ModelConfig>> = OnceCell::new();
 
-pub fn init() {
+pub fn init(models: Vec<ModelConfig>) {
     let mut m = HashMap::new();
+    for mut model in models {
+        // Set the default options if not set
+        // TODO: Set only those fields which are not set by the user
+        if model.default_options.is_none() {
+            model.default_options = Some(ModelOptions::default());
+        }
 
-    m.insert(
-        "mistral-openhermes".to_string(),
-        Arc::new(Model {
-            driver: "ollama".to_string(),
-            default_options: Some(ModelOptions::default()),
-            prompt_tmpl: None,
-        }),
-    );
-
-    m.insert(
-        "mixtral-8x7b:q3_K_M".to_string(),
-        Arc::new(Model {
-            driver: "ollama".to_string(),
-            default_options: Some(ModelOptions::default()),
-            prompt_tmpl: Some(MISTRAL.to_string()),
-        }),
-    );
+        m.insert(model.name.clone(), model);
+    }
 
     MODELS.set(m).unwrap();
 }
 
-pub fn get_model(model: &str) -> Result<Arc<Model>, AppError> {
+pub fn get_model(model: &str) -> Result<&ModelConfig, AppError> {
     let models = MODELS
         .get()
         .ok_or(AppError::InternalServerError(StandardErrorResponse::new(
@@ -75,5 +66,5 @@ pub fn get_model(model: &str) -> Result<Arc<Model>, AppError> {
             "model_not_found".to_string(),
         )))?;
 
-    return Ok(model.clone());
+    return Ok(&model);
 }

@@ -1,25 +1,18 @@
-use async_trait::async_trait;
 use serde::Serialize;
-use std::fmt::Debug;
 
-use crate::{http::AppError, llm::prompts};
+use crate::llm::prompts;
 
-#[async_trait]
-pub trait Driver: Send + Sync + Debug {
-    async fn call(&self, req: &Request, options: &RequestOptions) -> Result<Response, AppError>;
-}
 
 #[derive(Serialize)]
-
-pub struct Request {
+pub struct InferenceRequest {
     pub model: String,
-    pub messages: Vec<RequestMessage>,
+    pub messages: Vec<InferenceMessage>,
     pub tools: Option<Vec<Tool>>,
 }
 
-impl Request {
-    pub fn new(model: String, messages: Vec<RequestMessage>, tools: Option<Vec<Tool>>) -> Self {
-        return Request {
+impl InferenceRequest {
+    pub fn new(model: String, messages: Vec<InferenceMessage>, tools: Option<Vec<Tool>>) -> Self {
+        return InferenceRequest {
             model: model,
             messages: messages,
             tools: tools,
@@ -28,7 +21,7 @@ impl Request {
 }
 
 #[derive(Serialize)]
-pub struct RequestMessage {
+pub struct InferenceMessage {
     pub role: String,
     pub content: Option<String>,
 }
@@ -48,7 +41,7 @@ pub enum ToolType {
     Function,
 }
 
-pub struct RequestOptions {
+pub struct InferenceOptions {
     pub top_p: Option<f64>,
     pub top_k: Option<i32>,
     pub num_ctx: Option<i32>,
@@ -59,14 +52,14 @@ pub struct RequestOptions {
     pub prompt_tmpl: String,
 }
 
-impl RequestOptions {
+impl InferenceOptions {
     pub fn new(
         top_p: Option<f64>,
         top_k: Option<i32>,
         num_ctx: Option<i32>,
         temperature: Option<f64>,
     ) -> Self {
-        return RequestOptions {
+        return InferenceOptions {
             top_p: top_p,
             top_k: top_k,
             num_ctx: num_ctx,
@@ -78,7 +71,7 @@ impl RequestOptions {
     }
 
     pub fn default() -> Self {
-        return RequestOptions {
+        return InferenceOptions {
             top_p: Some(0.9),
             top_k: Some(40),
             num_ctx: Some(4096),
@@ -90,11 +83,11 @@ impl RequestOptions {
     }
 }
 
-pub struct Response {
+pub struct InferenceResponse {
     pub model: String,
     pub created_at: String,
     pub response: String,
-    pub stats: ResponseStats,
+    pub stats: InferenceStats,
     pub fn_call: Option<FunctionCall>,
 }
 
@@ -104,7 +97,7 @@ pub struct FunctionCall {
     pub parameters: serde_json::Value,
 }
 
-pub struct ResponseStats {
+pub struct InferenceStats {
     pub total_duration: Option<u64>,
     pub load_duration: Option<u64>,
     pub prompt_eval_count: Option<u64>,

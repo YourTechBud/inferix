@@ -1,20 +1,20 @@
 use axum::Json;
 
 use crate::{
-    embedding::drivers::{run_inference, Request},
     http::AppError,
+    llm::{drivers::embedding::create_embeddings, types::EmbeddingRequest},
 };
 
 pub async fn handle_embed_request(
     Json(req): Json<types::EmbeddingRequest>,
 ) -> Result<Json<Vec<Vec<f64>>>, AppError> {
-    let req = Request {
-        model: None,
+    let req = EmbeddingRequest {
+        model: "default".to_string(),
         trucate: req.trucate,
         inputs: req.inputs,
     };
 
-    let res = run_inference(req).await?;
+    let res = create_embeddings(req).await?;
 
     // Convert the response to a format that can be returned
     let mut embeddings = Vec::with_capacity(res.data.len());
@@ -27,7 +27,7 @@ pub async fn handle_embed_request(
 mod types {
     use serde::{Deserialize, Serialize};
 
-    use crate::embedding::drivers::EmbeddingInput;
+    use crate::llm::types::EmbeddingInput;
 
     #[derive(Serialize, Deserialize)]
     pub struct EmbeddingRequest {

@@ -6,20 +6,20 @@ use std::option::Option;
 use crate::{
     http::{AppError, StandardErrorResponse},
     llm::prompts,
+    llm::types::*,
     utils,
 };
 
-use super::*;
+use super::Driver;
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 pub struct Ollama {
-    host: String,
-    port: String,
+    base_url: String,
 }
 
 impl Ollama {
-    pub fn new(host: String, port: String) -> Self {
-        return Ollama { host, port };
+    pub fn new(config: serde_json::Value) -> Self {
+        return serde_json::from_value(config).unwrap();
     }
 }
 
@@ -48,7 +48,14 @@ pub struct OllamaResponse {
 
 #[async_trait]
 impl Driver for Ollama {
-    async fn call(&self, req: &Request, options: &RequestOptions) -> Result<Response, AppError> {
+    async fn run_inference(
+        &self,
+        req: &InferenceRequest,
+        options: &InferenceOptions,
+    ) -> Result<InferenceResponse, AppError> {
+        // TODO: We should default to using the chat completion endpoinnt. We can switch
+        // to the generation endpoint only if the user explicitly specifies the prompt template/
+
         // Let's first get the prompt
         let prompt = prompts::get_prompt(&options.prompt_tmpl, &req.messages)?;
 
@@ -76,7 +83,7 @@ impl Driver for Ollama {
 
         // Call the Ollama API
         let client = Client::new();
-        let url = format!("http://{}:{}/api/generate", self.host, self.port);
+        let url = format!("{}/api/generate", self.base_url);
         let response = client.post(&url).json(&req).send().await.map_err(|e| {
             eprintln!("Request error: {}", e);
             return AppError::BadRequest(StandardErrorResponse::new(
@@ -111,11 +118,11 @@ impl Driver for Ollama {
         println!("{}", res.response);
         println!("====================================");
 
-        return Ok(Response {
+        return Ok(InferenceResponse {
             model: res.model,
             created_at: res.created_at,
             response: res.response,
-            stats: ResponseStats {
+            stats: InferenceStats {
                 total_duration: res.total_duration,
                 load_duration: res.load_duration,
                 prompt_eval_count: res.prompt_eval_count,
@@ -126,31 +133,50 @@ impl Driver for Ollama {
             fn_call: None,
         });
     }
+
+    async fn create_embedding(
+        &self,
+        _req: &EmbeddingRequest,
+    ) -> Result<EmbeddingResponse, AppError> {
+        // TODO: Ollama does support embeddings. We should only deny if the user
+        // explicitly forbids using that model for embeddings.
+        return Err(AppError::BadRequest(StandardErrorResponse::new(
+            "Ollama driver does not support embeddings".to_string(),
+            "function_not_supported".to_string(),
+        )));
+    }
 }
 
 #[cfg(test)]
 mod test {
+
+    use crate::llm::types::InferenceMessage;
 
     use super::*;
 
     #[tokio::test]
     #[ignore]
     async fn test_ollama() {
-        prompts::init();
+        prompts::init(vec![
+            crate::llm::prompts::PrompTemplate {
+                name: "chatml".to_string(),
+                tmpl: "{% for msg in messages %}<|im_start|>{{ msg.role }}\n{{ msg.content }}<|im_end|>\n{% endfor %}<|im_start|>assistant".to_string(),
+                stop: vec!["<|im_start|>".to_string(), "<|im_end|>".to_string()],
+            },
+        ]);
 
         let driver = Ollama {
-            host: "localhost".to_string(),
-            port: "11434".to_string(),
+            base_url: "http://localhost:11434".to_string(),
         };
 
-        let req = Request {
+        let req = InferenceRequest {
             model: "mistral-openhermes".to_string(),
             messages: vec![
-                RequestMessage {
+                InferenceMessage {
                     role: "system".to_string(),
                     content: Some("You are a helpful AI assistant".to_string()),
                 },
-                RequestMessage {
+                InferenceMessage {
                     role: "user".to_string(),
                     content: Some("What's the capital of British Columbia".to_string()),
                 },
@@ -158,7 +184,10 @@ mod test {
             tools: None,
         };
 
-        let res = driver.call(&req, &RequestOptions::default()).await.unwrap();
+        let res = driver
+            .run_inference(&req, &InferenceOptions::default())
+            .await
+            .unwrap();
         assert_eq!(res.model, "mistral-openhermes");
     }
 }

@@ -4,17 +4,16 @@ use serde::Serialize;
 
 use crate::http::{AppError, StandardErrorResponse};
 
-use super::{Driver, Request, EmbeddingInput, Response};
+use super::*;
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 pub struct TextEmbeddingsInference {
-    host: String,
-    port: String,
+    base_url: String,
 }
 
 impl TextEmbeddingsInference {
-    pub fn new(host: String, port: String) -> Self {
-        return TextEmbeddingsInference { host, port };
+    pub fn new(config: serde_json::Value) -> Self {
+        return serde_json::from_value(config).unwrap();
     }
 }
 
@@ -25,16 +24,28 @@ struct TextEmbeddingsInferenceRequest<'a> {
 
 #[async_trait]
 impl Driver for TextEmbeddingsInference {
-    async fn call(&self, req: &Request) -> Result<Response, AppError> {
+    async fn run_inference(
+        &self,
+        _: &InferenceRequest,
+        _: &InferenceOptions,
+    ) -> Result<InferenceResponse, AppError> {
+        return Err(AppError::InternalServerError(StandardErrorResponse::new(
+            "Inference is not supported".to_string(),
+            "function_not_supported".to_string(),
+        )));
+    }
+
+    async fn create_embedding(
+        &self,
+        req: &EmbeddingRequest,
+    ) -> Result<EmbeddingResponse, AppError> {
         // Prepare the request
-        let req = TextEmbeddingsInferenceRequest {
-            input: &req.inputs,
-        };
+        let req = TextEmbeddingsInferenceRequest { input: &req.inputs };
 
         // Send the request
         let client = Client::new();
         let res = client
-            .post(&format!("http://{}:{}/embeddings", self.host, self.port))
+            .post(&format!("{}/embeddings", self.base_url))
             .json(&req)
             .send()
             .await
@@ -69,8 +80,6 @@ impl Driver for TextEmbeddingsInference {
                 "tei_parse_error".to_string(),
             ));
         })?;
-
-
 
         return Ok(res);
     }

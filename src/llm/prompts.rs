@@ -1,16 +1,17 @@
 use std::collections::HashMap;
 
 use once_cell::sync::OnceCell;
+use serde::Deserialize;
 
 use crate::{
     http::{AppError, StandardErrorResponse},
-    llm::drivers::RequestMessage,
+    llm::types::InferenceMessage,
 };
 
 pub const CHATML: &str = "chatml";
 pub const MISTRAL: &str = "mistral";
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 pub struct PrompTemplate {
     pub name: String,
     pub tmpl: String,
@@ -29,34 +30,18 @@ impl PrompTemplate {
 
 pub static PROMPT_TEMPLATES: OnceCell<HashMap<String, PrompTemplate>> = OnceCell::new();
 
-pub fn init() {
+pub fn init(prompt_tmpls: Vec<PrompTemplate>) {
     let mut m = HashMap::new();
-
-    // Let's add the chatml prompt template by default
-    m.insert(
-        "chatml".to_string(),
-        PrompTemplate::new(
-            "chatml".to_string(),
-            "{% for msg in messages %}<|im_start|>{{ msg.role }}\n{{ msg.content }}<|im_end|>\n{% endfor %}<|im_start|>assistant".to_string(),
-            vec!["<|im_start|>".to_string(), "<|im_end|>".to_string()],
-        ),
-    );
-
-    m.insert(
-        "mistral".to_string(),
-        PrompTemplate::new(
-            "mistral".to_string(),
-            "[INST] {{ messages[0].content }}{% if messages | length == 2 %}\n\n{{messages[1].content}}{% endif %} [/INST]".to_string(),
-            vec!["[INST]".to_string(), "[/INST]".to_string()],
-        ),
-    );
+    for pt in prompt_tmpls {
+        m.insert(pt.name.clone(), pt);
+    }
 
     PROMPT_TEMPLATES.set(m).unwrap();
 }
 
 pub fn get_prompt(
     prompt_tmpl_name: &str,
-    messages: &Vec<RequestMessage>,
+    messages: &Vec<InferenceMessage>,
 ) -> Result<String, AppError> {
     let prompts_map =
         PROMPT_TEMPLATES
@@ -76,6 +61,7 @@ pub fn get_prompt(
     let mut context = tera::Context::new();
     context.insert("messages", &messages);
 
+    // TODO: We should probably compile the template once and cache it
     let rendered = tera::Tera::one_off(&prompt_tmpl.tmpl, &context, false).map_err(|e| {
         AppError::InternalServerError(StandardErrorResponse::new(
             format!("Error rendering prompt template: {}", e.to_string()),

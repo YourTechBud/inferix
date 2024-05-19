@@ -16,9 +16,14 @@ use tower::ServiceBuilder;
 #[command(version, about, long_about = None)]
 struct Cli {
     /************************************************/
+    /********************* Config *******************/
+    /************************************************/
+    #[arg(short, long, value_name = "FILE")]
+    config: Option<PathBuf>,
+
+    /************************************************/
     /****************** HTTP Settings ***************/
     /************************************************/
-    #[arg(long)]
     #[arg(long, default_value = "4386")]
     port: u16,
 
@@ -59,9 +64,12 @@ async fn main() {
     // TODO: Need to clean this up
     CLI_ARGS.set(cli).unwrap();
 
+    // TODO: Make this cleaner
+    let cli = CLI_ARGS.get().unwrap();
+
     // Initialize the LLM driver
     // TODO: Load which drivers are required from the config file
-    inferix::init();
+    inferix::init(cli.config.clone());
 
     // Setup the cors middleware
     // TODO: Allow users to modify the cors settings
@@ -72,16 +80,13 @@ async fn main() {
 
     // Start by creating a router
     let app = Router::new()
-        .nest("/api/llm/v1", inferix::llm::routes::new())
-        .nest("/api/embeddings/v1", inferix::embedding::routes::new())
+        .nest("/api/v1", inferix::llm::routes::new())
         .layer(
             ServiceBuilder::new()
                 .layer(cors)
                 .layer(middleware::from_fn(jwt_auth_middleware)),
         );
 
-    // TODO: Make this cleaner
-    let cli = CLI_ARGS.get().unwrap();
     if cli.tls {
         tokio::spawn(start_tls_sever(cli, app.clone()));
     }
