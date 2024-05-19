@@ -5,9 +5,12 @@ use crate::{
 
 use super::DRIVERS;
 
-pub async fn create_embeddings(req: EmbeddingRequest) -> Result<EmbeddingResponse, AppError> {
+pub async fn create_embeddings(mut req: EmbeddingRequest) -> Result<EmbeddingResponse, AppError> {
     // Get the model
     let model = crate::llm::models::get_model(&req.model)?;
+    
+    // Override the model name in request
+    req.model = model.get_model_name().to_string();
 
     // Get the driver from the drivers list
     let drivers =

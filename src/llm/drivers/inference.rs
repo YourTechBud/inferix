@@ -15,6 +15,9 @@ pub async fn run_inference(
     // Get the model
     let model = crate::llm::models::get_model(&req.model)?;
 
+    // Override the model name in request
+    req.model = model.get_model_name().to_string();
+
     // Populate the request with default options
     if let Some(model_options) = &model.default_options {
         if options.top_p.is_none() {

@@ -2,6 +2,7 @@ pub mod inference;
 pub mod embedding;
 
 mod ollama;
+mod openai;
 mod tei;
 
 use async_trait::async_trait;
@@ -37,6 +38,9 @@ pub enum DriverType {
     #[serde(rename = "ollama")]
     Ollama,
 
+    #[serde(rename = "openai")]
+    OpenAI,
+
     #[serde(rename = "tei")]
     TEI,
 }
@@ -57,6 +61,13 @@ pub fn init(drivers: Vec<DriverConfig>) {
                 d.insert(
                     driver.name,
                     Box::new(tei::TextEmbeddingsInference::new(driver.config)) as Box<dyn Driver>,
+                );
+            },
+
+            DriverType::OpenAI => {
+                d.insert(
+                    driver.name,
+                    Box::new(openai::OpenAI::new(driver.config)) as Box<dyn Driver>,
                 );
             },
         }

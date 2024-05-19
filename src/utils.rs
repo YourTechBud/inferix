@@ -76,6 +76,30 @@ pub fn convert_to_unix_timestamp(datetime: &str) -> i64 {
     }
 }
 
+/// Converts the provided Unix timestamp to a datetime string.
+///
+/// # Arguments
+///
+/// * `timestamp` - The Unix timestamp as an `i64` value.
+///
+/// # Returns
+///
+/// The datetime string in RFC 3339 format.
+/// 
+/// # Examples
+/// 
+/// ```
+/// use inferix::utils::convert_to_datetime;
+/// 
+/// let timestamp = 1640995200;
+/// let expected = "2022-01-01T00:00:00+00:00";
+/// assert_eq!(convert_to_datetime(timestamp), expected);
+/// ```
+pub fn convert_to_datetime(timestamp: i64) -> String {
+    let dt = chrono::DateTime::from_timestamp(timestamp, 0).unwrap();
+    return dt.to_rfc3339();
+}
+
 /// Sanitizes the provided JSON text by extracting the JSON object from the text.
 ///
 /// # Arguments

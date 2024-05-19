@@ -7,10 +7,20 @@ use crate::http::{AppError, StandardErrorResponse};
 
 #[derive(Debug, Deserialize)]
 pub struct ModelConfig {
-    pub name: String,
+    name: String,
     pub driver: String,
+    pub target_name: Option<String>,
     pub default_options: Option<ModelOptions>,
     pub prompt_tmpl: Option<String>,
+}
+
+impl ModelConfig {
+    pub fn get_model_name(&self) -> &str {
+        return match &self.target_name {
+            Some(name) => name,
+            None => &self.name,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -27,7 +37,7 @@ impl ModelOptions {
         return ModelOptions {
             top_p: Some(0.9),
             top_k: Some(40),
-            num_ctx: Some(4096),
+            num_ctx: None,
             temperature: Some(0.2),
             driver_options: None,
         };
@@ -51,7 +61,7 @@ pub fn init(models: Vec<ModelConfig>) {
     MODELS.set(m).unwrap();
 }
 
-pub fn get_model(model: &str) -> Result<&ModelConfig, AppError> {
+pub fn get_model<'a, 'b>(model: &'a str) -> Result<&'b ModelConfig, AppError> {
     let models = MODELS
         .get()
         .ok_or(AppError::InternalServerError(StandardErrorResponse::new(

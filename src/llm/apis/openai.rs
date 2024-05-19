@@ -128,7 +128,7 @@ pub async fn handle_chat_completion(
         created: utils::convert_to_unix_timestamp(&res.created_at),
         model: res.model.clone(),
         object: "chat.completion".to_string(),
-        system_fingerprint: "inferix".to_string(),
+        system_fingerprint: None,
         usage: CompletionUsage {
             completion_tokens: res.stats.eval_count.unwrap_or(0),
             prompt_tokens: res.stats.prompt_eval_count.unwrap_or(0),
@@ -195,6 +195,7 @@ fn prepare_chat_completion_message(
 
 pub mod types {
     use serde::{Deserialize, Serialize};
+    use serde_with::skip_serializing_none;
 
     use crate::llm::types::EmbeddingInput;
 
@@ -207,14 +208,14 @@ pub mod types {
     /******************************************************************/
     /***********************  Types for Request  **********************/
     /******************************************************************/
-
+    #[skip_serializing_none]
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct CreateChatCompletionRequest {
         pub messages: Vec<ChatCompletionRequestMessage>,
         pub model: String,
         pub frequency_penalty: Option<f64>,
-        pub logprobs: Option<bool>,
-        pub top_logprobs: Option<i32>,
+        // pub logprobs: Option<bool>,
+        // pub top_logprobs: Option<i32>,
         pub max_tokens: Option<i32>,
         pub n: Option<i32>,
         pub presence_penalty: Option<f64>,
@@ -278,6 +279,7 @@ pub mod types {
         pub name: String,
     }
 
+    #[skip_serializing_none]
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct ChatCompletionRequestMessage {
         pub content: Option<String>,
@@ -360,13 +362,14 @@ pub mod types {
     /**********************  Types for Response  **********************/
     /******************************************************************/
 
+    #[skip_serializing_none]
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct CreateChatCompletionResponse {
         pub id: String,
         pub choices: Vec<ResponseChoice>,
         pub created: i64,
         pub model: String,
-        pub system_fingerprint: String,
+        pub system_fingerprint: Option<String>,
         pub object: String,
         // Placeholder for the unimplemented type
         pub usage: CompletionUsage,
@@ -379,6 +382,7 @@ pub mod types {
         pub message: ChatCompletionResponseMessage,
     }
 
+    #[skip_serializing_none]
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct ChatCompletionResponseMessage {
         #[serde(skip_serializing_if = "Option::is_none")]

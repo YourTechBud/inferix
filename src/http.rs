@@ -3,21 +3,21 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct StandardErrorResponse {
     message: String,
 
     #[serde(rename = "type")]
-    error_type: String,
+    error_type: Option<String>,
 }
 
 impl StandardErrorResponse {
     pub fn new(message: String, error_type: String) -> Self {
         Self {
             message,
-            error_type,
+            error_type: Some(error_type),
         }
     }
 }
