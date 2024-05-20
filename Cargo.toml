@@ -22,3 +22,9 @@ tower-http = { version = "0.5.2", features = ["cors"] }
 axum-server = { version = "0.6.0", features = ["tls-rustls"] }
 serde_yaml = "0.9.34"
 serde_with = "3.8.1"
+reqwest-eventsource = "0.6.0"
+async-stream = "0.3.5"
+futures-core = "0.3.30"
+futures-util = "0.3.30"
+tokio-stream = "0.1.15"
+enum_dispatch = "0.3.13"

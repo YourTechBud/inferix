@@ -23,8 +23,9 @@ impl StandardErrorResponse {
 }
 
 // The kinds of errors we can hit in our application.
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum AppError {
+    StreamEndedd,
     BadRequest(StandardErrorResponse),
     InternalServerError(StandardErrorResponse),
     Unauthenticated(String),
@@ -36,6 +37,10 @@ pub enum AppError {
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let (status, message) = match self {
+            AppError::StreamEndedd => (
+                StatusCode::OK,
+                StandardErrorResponse::new("[DONE]".to_string(), "".to_string()),
+            ),
             AppError::BadRequest(message) => (StatusCode::BAD_REQUEST, message),
             AppError::InternalServerError(message) => (StatusCode::INTERNAL_SERVER_ERROR, message),
             AppError::Unauthenticated(message) => (
@@ -44,7 +49,11 @@ impl IntoResponse for AppError {
             ),
         };
 
-        (status, Json(message)).into_response()
+        if StatusCode::OK == status {
+            return (status, message.message).into_response();
+        }
+
+        return (status, Json(message)).into_response();
     }
 }
 
@@ -53,3 +62,18 @@ impl From<StandardErrorResponse> for AppError {
         Self::BadRequest(bad_req)
     }
 }
+
+impl std::fmt::Display for AppError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AppError::BadRequest(message) => write!(f, "Bad Request: {}", message.message),
+            AppError::InternalServerError(message) => {
+                write!(f, "Internal Server Error: {}", message.message)
+            }
+            AppError::Unauthenticated(message) => write!(f, "Unauthenticated: {}", message),
+            AppError::StreamEndedd => write!(f, "[DONE]"),
+        }
+    }
+}
+
+impl std::error::Error for AppError {}

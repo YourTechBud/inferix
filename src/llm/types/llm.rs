@@ -1,7 +1,6 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::llm::prompts;
-
 
 #[derive(Serialize)]
 pub struct InferenceRequest {
@@ -83,12 +82,34 @@ impl InferenceOptions {
     }
 }
 
-pub struct InferenceResponse {
+pub struct InferenceResponseSync {
     pub model: String,
     pub created_at: String,
     pub response: String,
     pub stats: InferenceStats,
     pub fn_call: Option<FunctionCall>,
+}
+
+pub struct InferenceResponseStream {
+    pub model: String,
+    pub created_at: String,
+    pub response: String,
+    pub finish_reason: Option<FinishReason>,
+    pub stats: Option<InferenceStats>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum FinishReason {
+    #[serde(rename = "stop")]
+    Stop,
+    #[serde(rename = "length")]
+    Length,
+    #[serde(rename = "tool_calls")]
+    ToolCalls,
+    #[serde(rename = "content_filter")]
+    ContentFilter,
+    #[serde(rename = "function_call")]
+    FunctionCall,
 }
 
 #[derive(serde::Deserialize)]

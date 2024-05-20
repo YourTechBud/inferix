@@ -1,69 +1,39 @@
+use futures_util::StreamExt;
+
 use crate::{
     http::{AppError, StandardErrorResponse},
-    llm::types::{
-        FunctionCall, InferenceMessage, InferenceOptions, InferenceRequest, InferenceResponse, Tool,
+    llm::{
+        models::ModelConfig,
+        types::{
+            FunctionCall, InferenceMessage, InferenceOptions, InferenceRequest,
+            InferenceResponseSync, Tool,
+        },
     },
     utils,
 };
 
-use super::DRIVERS;
+use super::*;
 
 pub async fn run_inference(
     mut req: InferenceRequest,
     mut options: InferenceOptions,
-) -> Result<InferenceResponse, AppError> {
+) -> Result<InferenceResponseSync, AppError> {
     // Get the model
-    let model = crate::llm::models::get_model(&req.model)?;
+    let model_config = crate::llm::models::get_model(&req.model)?;
 
     // Override the model name in request
-    req.model = model.get_model_name().to_string();
+    req.model = model_config.get_model_name().to_string();
 
     // Populate the request with default options
-    if let Some(model_options) = &model.default_options {
-        if options.top_p.is_none() {
-            options.top_p = model_options.top_p;
-        }
-        if options.top_k.is_none() {
-            options.top_k = model_options.top_k;
-        }
-        if options.num_ctx.is_none() {
-            options.num_ctx = model_options.num_ctx;
-        }
-        if options.temperature.is_none() {
-            options.temperature = model_options.temperature;
-        }
-
-        // Dont forget to load the driver options and the prompt template
-        if let Some(driver_options) = &model_options.driver_options {
-            options.driver_options = driver_options.clone();
-        }
-        if let Some(prompt_tmpl) = &model.prompt_tmpl {
-            options.prompt_tmpl = prompt_tmpl.clone();
-        }
-    }
+    populate_options(&mut options, model_config);
 
     // Inject the function call message if tools are provided
     if let Some(tools) = &req.tools {
         req.messages = inject_fn_call(req.messages, &tools);
     }
 
-    // Get the driver from the drivers list
-    let drivers =
-        DRIVERS
-            .get()
-            .ok_or(AppError::InternalServerError(StandardErrorResponse::new(
-                "Drivers not initialized".to_string(),
-                "drivers_not_initialized".to_string(),
-            )))?;
-
     // TODO: Check if the model is available in the drivers list during config load
-    let driver =
-        drivers
-            .get(&model.driver)
-            .ok_or(AppError::BadRequest(StandardErrorResponse::new(
-                "Driver not found".to_string(),
-                "driver_not_found".to_string(),
-            )))?;
+    let driver = helpers::get_driver(&model_config)?;
 
     // TODO: Restrict the loop to a certain number of iterations
     loop {
@@ -95,6 +65,75 @@ pub async fn run_inference(
         }
 
         return Ok(res);
+    }
+}
+
+pub fn run_streaming_inference<'a>(
+    mut req: InferenceRequest,
+    mut options: InferenceOptions,
+) -> Result<BoxStream<'a, Result<InferenceResponseStream, AppError>>, AppError> {
+    // Function calling isn't allowed in streaming mode
+    if req.tools.is_some() {
+        return Err(AppError::BadRequest(StandardErrorResponse::new(
+            "Function calling isn't allowed in streaming mode".to_string(),
+            "function_calling_not_allowed".to_string(),
+        )));
+    }
+
+    // Get the model
+    let og_model = req.model.clone();
+    let model_config = crate::llm::models::get_model(&req.model)?;
+
+    // Override the model name in request
+    req.model = model_config.get_model_name().to_string();
+
+    // Populate the request with default options
+    populate_options(&mut options, model_config);
+
+    // Inject the function call message if tools are provided
+    if let Some(tools) = &req.tools {
+        req.messages = inject_fn_call(req.messages, &tools);
+    }
+
+    // TODO: Check if the model is available in the drivers list during config load
+    let driver = helpers::get_driver(&model_config)?;
+
+    // Call the driver and run inference
+    let stream = driver.run_streaming_inference(&req, &options)?;
+
+    // Make sure we inject the proper model name in the response
+    let stream = stream.map(move |chunk| match chunk {
+        Ok(mut c) => {
+            c.model = og_model.clone();
+            return Ok(c);
+        }
+        _ => return chunk,
+    }).boxed();
+    return Ok(stream);
+}
+
+fn populate_options(options: &mut InferenceOptions, model_config: &ModelConfig) {
+    if let Some(model_options) = &model_config.default_options {
+        if options.top_p.is_none() {
+            options.top_p = model_options.top_p;
+        }
+        if options.top_k.is_none() {
+            options.top_k = model_options.top_k;
+        }
+        if options.num_ctx.is_none() {
+            options.num_ctx = model_options.num_ctx;
+        }
+        if options.temperature.is_none() {
+            options.temperature = model_options.temperature;
+        }
+
+        // Dont forget to load the driver options and the prompt template
+        if let Some(driver_options) = &model_options.driver_options {
+            options.driver_options = driver_options.clone();
+        }
+        if let Some(prompt_tmpl) = &model_config.prompt_tmpl {
+            options.prompt_tmpl = prompt_tmpl.clone();
+        }
     }
 }
 

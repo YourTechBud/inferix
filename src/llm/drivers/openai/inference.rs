@@ -1,71 +1,30 @@
 use async_trait::async_trait;
-use reqwest::Client;
-use serde::Deserialize;
 
-use super::Driver;
-use crate::llm::apis::openai::types::{
-    ChatCompletionRequestMessage, CreateChatCompletionRequest, CreateChatCompletionResponse,
-};
 use crate::{
     http::{AppError, StandardErrorResponse},
-    llm::types::*,
+    llm::{
+        apis::openai::types::CreateChatCompletionResponse,
+        drivers::InferenceDriver,
+        types::{InferenceOptions, InferenceRequest, InferenceResponseSync, InferenceStats},
+    },
     utils,
 };
 
-#[derive(Debug, Deserialize)]
-pub struct OpenAI {
-    base_url: String,
-}
-
-impl OpenAI {
-    pub fn new(config: serde_json::Value) -> Self {
-        return serde_json::from_value(config).unwrap();
-    }
-}
+use super::OpenAI;
 
 #[async_trait]
-impl Driver for OpenAI {
+impl InferenceDriver for OpenAI {
     async fn run_inference(
         &self,
         req: &InferenceRequest,
         options: &InferenceOptions,
-    ) -> Result<InferenceResponse, AppError> {
+    ) -> Result<InferenceResponseSync, AppError> {
         // Prepare openai request
-        let req = CreateChatCompletionRequest {
-            model: req.model.clone(),
-            messages: req
-                .messages
-                .iter()
-                .map(|m| ChatCompletionRequestMessage {
-                    role: m.role.clone(),
-                    content: m.content.clone(),
-                    name: None,
-                    tool_call_id: None,
-                    function_call: None,
-                    tool_calls: None,
-                })
-                .collect(),
-            max_tokens: options.num_ctx,
-            temperature: options.temperature,
-            top_p: options.top_p,
-            frequency_penalty: None,
-            presence_penalty: None,
-            stop: None,
-            function_call: None,
-            functions: None,        // TODO: Add support for this
-            tool_choice: None,
-            tools: None,            // TODO: Add support for this
-            response_format: None,  // TODO: Add support for this
-            n: Some(1),
-            seed: None,
-            stream: Some(false),
-        };
+        let req = OpenAI::prepare_request_message(req, options);
 
         // Fire the request
-        let client = Client::new();
-        let res = client
-            .post(&format!("{}/chat/completions", self.base_url))
-            .json(&req)
+        let res = self
+            .prepare_reqwest_builder(&req)
             .send()
             .await
             .map_err(|e| {
@@ -102,7 +61,7 @@ impl Driver for OpenAI {
                 ));
             })?;
 
-        return Ok(InferenceResponse {
+        return Ok(InferenceResponseSync {
             model: res.model,
             response: res.choices[0]
                 .message
@@ -120,17 +79,5 @@ impl Driver for OpenAI {
             },
             created_at: utils::convert_to_datetime(res.created),
         });
-    }
-
-    async fn create_embedding(
-        &self,
-        _req: &EmbeddingRequest,
-    ) -> Result<EmbeddingResponse, AppError> {
-        // TODO: OpenAI does support embeddings. We should only deny if the user
-        // explicitly forbids using that model for embeddings.
-        return Err(AppError::BadRequest(StandardErrorResponse::new(
-            "OpenAI driver does not support embeddings".to_string(),
-            "function_not_supported".to_string(),
-        )));
     }
 }

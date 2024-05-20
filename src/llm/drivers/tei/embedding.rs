@@ -1,40 +1,18 @@
 use async_trait::async_trait;
 use reqwest::Client;
-use serde::Serialize;
 
-use crate::http::{AppError, StandardErrorResponse};
+use crate::{
+    http::{AppError, StandardErrorResponse},
+    llm::{
+        drivers::EmbeddingDriver,
+        types::{EmbeddingRequest, EmbeddingResponse},
+    },
+};
 
-use super::*;
-
-#[derive(Debug, Deserialize)]
-pub struct TextEmbeddingsInference {
-    base_url: String,
-}
-
-impl TextEmbeddingsInference {
-    pub fn new(config: serde_json::Value) -> Self {
-        return serde_json::from_value(config).unwrap();
-    }
-}
-
-#[derive(Serialize)]
-struct TextEmbeddingsInferenceRequest<'a> {
-    input: &'a EmbeddingInput,
-}
+use super::{types::TextEmbeddingsInferenceRequest, TextEmbeddingsInference};
 
 #[async_trait]
-impl Driver for TextEmbeddingsInference {
-    async fn run_inference(
-        &self,
-        _: &InferenceRequest,
-        _: &InferenceOptions,
-    ) -> Result<InferenceResponse, AppError> {
-        return Err(AppError::InternalServerError(StandardErrorResponse::new(
-            "Inference is not supported".to_string(),
-            "function_not_supported".to_string(),
-        )));
-    }
-
+impl EmbeddingDriver for TextEmbeddingsInference {
     async fn create_embedding(
         &self,
         req: &EmbeddingRequest,
