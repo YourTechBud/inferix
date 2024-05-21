@@ -15,7 +15,10 @@ pub struct ModelConfig {
 }
 
 impl ModelConfig {
-    pub fn get_model_name(&self) -> &str {
+    pub fn get_name(&self) -> &str {
+        return &self.name;
+    }
+    pub fn get_target_name(&self) -> &str {
         return match &self.target_name {
             Some(name) => name,
             None => &self.name,

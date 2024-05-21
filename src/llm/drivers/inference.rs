@@ -22,7 +22,7 @@ pub async fn run_inference(
     let model_config = crate::llm::models::get_model(&req.model)?;
 
     // Override the model name in request
-    req.model = model_config.get_model_name().to_string();
+    req.model = model_config.get_target_name().to_string();
 
     // Populate the request with default options
     populate_options(&mut options, model_config);
@@ -64,6 +64,8 @@ pub async fn run_inference(
             }
         }
 
+        // Make sure we use the right model name in the response.
+        res.model = model_config.get_name().to_string();
         return Ok(res);
     }
 }
@@ -81,11 +83,10 @@ pub fn run_streaming_inference<'a>(
     }
 
     // Get the model
-    let og_model = req.model.clone();
     let model_config = crate::llm::models::get_model(&req.model)?;
 
     // Override the model name in request
-    req.model = model_config.get_model_name().to_string();
+    req.model = model_config.get_target_name().to_string();
 
     // Populate the request with default options
     populate_options(&mut options, model_config);
@@ -102,13 +103,15 @@ pub fn run_streaming_inference<'a>(
     let stream = driver.run_streaming_inference(&req, &options)?;
 
     // Make sure we inject the proper model name in the response
-    let stream = stream.map(move |chunk| match chunk {
-        Ok(mut c) => {
-            c.model = og_model.clone();
-            return Ok(c);
-        }
-        _ => return chunk,
-    }).boxed();
+    let stream = stream
+        .map(move |chunk| match chunk {
+            Ok(mut c) => {
+                c.model = model_config.get_name().to_string();
+                return Ok(c);
+            }
+            _ => return chunk,
+        })
+        .boxed();
     return Ok(stream);
 }
 

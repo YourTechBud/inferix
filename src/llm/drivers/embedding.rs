@@ -10,10 +10,15 @@ pub async fn create_embeddings(mut req: EmbeddingRequest) -> Result<EmbeddingRes
     let model = crate::llm::models::get_model(&req.model)?;
 
     // Override the model name in request
-    req.model = model.get_model_name().to_string();
+    req.model = model.get_target_name().to_string();
 
     // Get the driver from the drivers list
     let driver = helpers::get_driver(&model)?;
 
-    return driver.create_embedding(&req).await;
+    // Make sure we use the right model name in the response.
+    let mut result = driver.create_embedding(&req).await;
+    if let Ok(res) = &mut result {
+        res.model = Some(model.get_name().to_string());
+    }
+    return result;
 }
