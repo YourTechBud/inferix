@@ -9,7 +9,18 @@ use axum::{
 use axum_server::tls_rustls::RustlsConfig;
 use clap::Parser;
 use once_cell::sync::OnceCell;
+use serde::Serialize;
 use tower::ServiceBuilder;
+
+// TODO: Move this to a separate module
+#[derive(clap::ValueEnum, Clone, Default, Debug, Serialize)]
+#[serde(rename_all = "kebab-case")]
+enum LogLevel {
+    Debug,
+    #[default]
+    Info,
+    Error,
+}
 
 // TODO: Move this to a separate module
 #[derive(Debug, Parser)]
@@ -20,6 +31,12 @@ struct Cli {
     /************************************************/
     #[arg(short, long, env, value_name = "FILE")]
     config: Option<PathBuf>,
+
+    /************************************************/
+    /********************* Loging *******************/
+    /************************************************/
+    #[arg(long, env, default_value_t, value_enum)]
+    log_level: LogLevel,
 
     /************************************************/
     /****************** HTTP Settings ***************/
@@ -67,6 +84,16 @@ async fn main() {
     // TODO: Make this cleaner
     let cli = CLI_ARGS.get().unwrap();
 
+    // Initialise the Logger
+    tracing_subscriber::fmt()
+        .with_max_level(match cli.log_level {
+            LogLevel::Debug => tracing::Level::DEBUG,
+            LogLevel::Info => tracing::Level::INFO,
+            LogLevel::Error => tracing::Level::ERROR,
+        })
+        .with_target(false)
+        .init();
+
     // Initialize the LLM driver
     // TODO: Load which drivers are required from the config file
     inferix::init(cli.config.clone());
@@ -93,7 +120,7 @@ async fn main() {
 
     // Start the server
     let addr = std::net::SocketAddr::from(([0, 0, 0, 0], cli.port));
-    println!("Starting server on {}", addr.port());
+    tracing::info!("Starting server on {}", addr.port());
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
@@ -107,7 +134,7 @@ async fn start_tls_sever(cli: &Cli, app: Router) {
 
     // Configure the port
     let port = cli.tls_port.unwrap_or(4388);
-    println!("Starting server on {}", port);
+    tracing::info!("Starting server on {}", port);
 
     // Start the server
     let addr = std::net::SocketAddr::from(([0, 0, 0, 0], port));

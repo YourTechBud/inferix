@@ -38,7 +38,7 @@ impl InferenceDriver for OpenAI {
         let status = res.status();
         let is_success = status.is_success();
         let response_text = res.text().await.map_err(|e| {
-            eprintln!("Response error: {}", e);
+            tracing::error!("Response error: {}", e);
             return AppError::BadRequest(StandardErrorResponse::new(
                 "Unable to get response from driver".to_string(),
                 e.to_string(),
@@ -54,7 +54,7 @@ impl InferenceDriver for OpenAI {
 
         let res: CreateChatCompletionResponse =
             serde_json::from_str(&response_text).map_err(|e| {
-                eprintln!("Response parsing error: {}", e);
+                tracing::error!("Response parsing error: {}", e);
                 return AppError::BadRequest(StandardErrorResponse::new(
                     "Unable to parse server response".to_string(),
                     e.to_string(),

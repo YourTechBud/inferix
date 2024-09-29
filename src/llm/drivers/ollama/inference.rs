@@ -50,7 +50,7 @@ impl InferenceDriver for Ollama {
         let client = Client::new();
         let url = format!("{}/api/generate", self.base_url);
         let response = client.post(&url).json(&req).send().await.map_err(|e| {
-            eprintln!("Request error: {}", e);
+            tracing::error!("Request error: {}", e);
             return AppError::BadRequest(StandardErrorResponse::new(
                 "Unable to make request to Ollama".to_string(),
                 e.to_string(),
@@ -58,7 +58,7 @@ impl InferenceDriver for Ollama {
         })?;
 
         let res = response.text().await.map_err(|e| {
-            eprintln!("Response error: {}", e);
+            tracing::error!("Response error: {}", e);
             return AppError::BadRequest(StandardErrorResponse::new(
                 "Unable to get response from Ollama".to_string(),
                 e.to_string(),
@@ -66,7 +66,7 @@ impl InferenceDriver for Ollama {
         })?;
 
         let mut res: OllamaResponse = serde_json::from_str(&res).map_err(|e| {
-            eprintln!("Response parsing error: {}", e);
+            tracing::error!("Response parsing error: {}", e);
             return AppError::BadRequest(StandardErrorResponse::new(
                 "Unable to parse Ollama response".to_string(),
                 e.to_string(),

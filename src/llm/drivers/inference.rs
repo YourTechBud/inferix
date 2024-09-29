@@ -35,13 +35,24 @@ pub async fn run_inference(
     // TODO: Check if the model is available in the drivers list during config load
     let driver = helpers::get_driver(&model_config)?;
 
+    // Print the request and options
+    tracing::debug!("---------------");
+    tracing::debug!("Request: {:?}", req);
+    tracing::debug!("Options: {:?}", options);
+    tracing::debug!("---------------");
+
     // TODO: Restrict the loop to a certain number of iterations
+    let mut i = 0;
     loop {
         // Call the driver and run inference
         let mut res = driver.run_inference(&req, &options).await?;
 
         // Lets start by cleaning up the output
         res.response = res.response.trim().to_string();
+
+        tracing::debug!("---------------");
+        tracing::debug!("Response: {}", res.response);
+        tracing::debug!("---------------");
 
         // Rerun inference if the response is too small
         if res.response.len() <= 2 {
@@ -56,10 +67,16 @@ pub async fn run_inference(
             // Check if response is valid JSON
             let json_res = serde_json::from_str::<FunctionCall>(&res.response);
             if let Ok(fn_call) = json_res {
-                res.response = "".to_string();
+                res.response = format!(
+                    "Execute function {} with arguments: {}",
+                    fn_call.name,
+                    serde_json::to_string(&fn_call.parameters).unwrap()
+                )
+                .to_string();
                 res.fn_call = Some(fn_call);
-            } else {
+            } else if i < 5 {
                 // Run inference again if the response is not a valid JSON
+                i = i + 1;
                 continue;
             }
         }
@@ -141,7 +158,7 @@ fn populate_options(options: &mut InferenceOptions, model_config: &ModelConfig) 
 }
 
 fn inject_fn_call(messages: Vec<InferenceMessage>, functions: &Vec<Tool>) -> Vec<InferenceMessage> {
-    let mut content = "You may use the following FUNCTIONS in the response. Only use one function at a time. Give output in following OUTPUT_FORMAT in strict JSON if you want to call a function.\n\nFUNCTIONS:\n\n".to_string();
+    let mut content = "You may use the following FUNCTIONS in the response. Only use one function at a time. Give output in following OUTPUT_FORMAT if you want to call a function.\n\nFUNCTIONS:\n\n".to_string();
 
     for f in functions {
         content += &format!("- Name: {}\n", f.name);
@@ -155,8 +172,13 @@ fn inject_fn_call(messages: Vec<InferenceMessage>, functions: &Vec<Tool>) -> Vec
     }
 
     content += r#"OUTPUT_FORMAT:
+Parameter Selection:
+<Provide the step by step thought process to select the parameters. Go through the entire conversation>
+
+Function Call:
 {
     "type": "FUNC_CALL",
+    "reasoning": "<reasoning for choosing the parameters>",
     "name": "<name of function>",
     "parameters": "<value to pass to function as parameter>"
 }

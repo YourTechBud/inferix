@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::llm::prompts;
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct InferenceRequest {
     pub model: String,
     pub messages: Vec<InferenceMessage>,
@@ -19,13 +19,13 @@ impl InferenceRequest {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct InferenceMessage {
     pub role: String,
     pub content: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct Tool {
     pub name: String,
     pub description: Option<String>,
@@ -34,12 +34,13 @@ pub struct Tool {
     pub tool_type: ToolType,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub enum ToolType {
     #[serde(rename = "function")]
     Function,
 }
 
+#[derive(Serialize, Debug)]
 pub struct InferenceOptions {
     pub top_p: Option<f64>,
     pub top_k: Option<i32>,
