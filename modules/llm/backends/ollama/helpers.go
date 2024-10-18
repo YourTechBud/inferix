@@ -1,6 +1,10 @@
 package ollama
 
-import "github.com/YourTechBud/inferix/modules/llm/types"
+import (
+	"encoding/json"
+
+	"github.com/YourTechBud/inferix/modules/llm/types"
+)
 
 func convertToOllamaRequest(req types.InferenceRequest, opts types.InferenceOptions) OllamaRequest {
 	ollamaOptions := make(map[string]any)
@@ -25,10 +29,34 @@ func convertToOllamaRequest(req types.InferenceRequest, opts types.InferenceOpti
 		}
 	}
 
+	// Add the tools to the ollama request
+	var ollamaTools []OllamaFunctionCallRequest = nil
+	if len(req.Tools) > 0 {
+		ollamaTools = make([]OllamaFunctionCallRequest, len(req.Tools))
+		for i, tool := range req.Tools {
+			ollamaTools[i] = OllamaFunctionCallRequest{
+				Type: "function",
+				Function: FunctionCallRequest{
+					Name:        tool.Name,
+					Description: tool.Description,
+					Parameters: struct {
+						Type       string          "json:\"type\""
+						Properties json.RawMessage "json:\"properties\""
+						Required   []string        "json:\"required\""
+					}{
+						Type:       "object",
+						Properties: tool.Args,
+					},
+				},
+			}
+		}
+	}
+
 	return OllamaRequest{
 		Model:    req.Model,
 		Messages: ollamaMessages,
 		Options:  ollamaOptions,
 		Stream:   false,
+		Tools:    ollamaTools,
 	}
 }

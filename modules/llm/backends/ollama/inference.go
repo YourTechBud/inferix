@@ -36,12 +36,22 @@ func (backend *Ollama) RunInference(ctx context.Context, req types.InferenceRequ
 		return types.InferenceResponseSync{}, err
 	}
 
+	// Get the tool calls
+	var fnCall *types.FunctionCall
+	if len(httpResponse.Data.Message.ToolCalls) > 0 {
+		fnCall = &types.FunctionCall{
+			Name:       httpResponse.Data.Message.ToolCalls[0].Function.Name,
+			Parameters: httpResponse.Data.Message.ToolCalls[0].Function.Arguments,
+		}
+	}
+
 	ollamaResp := httpResponse.Data
 	return types.InferenceResponseSync{
 		Model: ollamaResp.Model,
 		Response: types.InferenceResponseMessage{
 			Content:      ollamaResp.Message.Content,
 			FinishReason: types.FinishReason_Stop,
+			FnCall:       fnCall,
 		},
 		CreatedAt: createdAt,
 		Stats: types.InferenceStats{

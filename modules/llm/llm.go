@@ -2,6 +2,7 @@ package llm
 
 import (
 	"github.com/YourTechBud/inferix/modules/llm/backends"
+	"github.com/YourTechBud/inferix/modules/llm/config"
 	"github.com/YourTechBud/inferix/modules/llm/models"
 )
 
@@ -13,7 +14,7 @@ type LLM struct {
 }
 
 // New creates a new LLM struct
-func New(config Config) (*LLM, error) {
+func New(config config.Config) (*LLM, error) {
 	// Create a new models struct
 	models := models.New(config.Models)
 

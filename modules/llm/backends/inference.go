@@ -2,10 +2,14 @@ package backends
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"log"
 	"strings"
 
 	"github.com/YourTechBud/inferix/modules/llm/types"
+	"github.com/YourTechBud/inferix/utils"
 )
 
 // RunInference is a function that runs inference on the backend
@@ -20,12 +24,18 @@ func (b *Backends) RunInference(ctx context.Context, req types.InferenceRequest,
 	req.Model = modelConfig.GetTargetName()
 	modelConfig.MergeOptions(&opts)
 
-	// TODO: Inject function calling prompt if the tools are provided and backend doesn't support it
-
 	// Get the right backend
 	backend, err := b.getBackend(modelConfig.Driver) // TODO: Get the backend based on the model
 	if err != nil {
 		return types.InferenceResponseSync{}, err
+	}
+
+	// Inject function calling prompt if the tools are provided and backend doesn't support it
+	if backend.RunFnInjection() && len(req.Tools) > 0 {
+		req.Messages = injectFnCall(req.Messages, req.Tools)
+
+		// Remove the tools from the request
+		req.Tools = nil
 	}
 
 	// Run inference in a loop
@@ -33,14 +43,18 @@ func (b *Backends) RunInference(ctx context.Context, req types.InferenceRequest,
 	for i := 0; i < 3; i++ {
 		resp, err := backend.RunInference(ctx, req, opts)
 		if err != nil {
+			log.Default().Printf("unable to run inference: %v", err)
 			return types.InferenceResponseSync{}, err
 		}
+
+		// Update the model name in the response
+		resp.Model = modelConfig.GetName()
 
 		// Remove all whitespaces from the response
 		resp.Response.Content = strings.TrimSpace(resp.Response.Content)
 
-		// Check if the response is not too short
-		if len(resp.Response.Content) < 5 {
+		// Check if the response is too short
+		if len(resp.Response.Content) < 5 && resp.Response.FnCall == nil {
 			continue
 		}
 
@@ -54,7 +68,28 @@ func (b *Backends) RunInference(ctx context.Context, req types.InferenceRequest,
 			resp.Response.FinishReason = types.FinishReason_Stop
 		}
 
-		// TODO: Check for function call in the response if backend did not support it natively
+		// Check for function call in the response if backend did not support it natively
+		if backend.RunFnInjection() {
+			if strings.Contains(resp.Response.Content, "FUNC_CALL") {
+				// Sanitize the JSON text
+				content := utils.SanitizeJSONText(resp.Response.Content)
+
+				// Check if response is valid JSON
+				var fnCall types.FunctionCall
+				if err := json.Unmarshal([]byte(content), &fnCall); err != nil {
+					log.Default().Printf("unable to unmarshal function call: %v", err)
+					continue
+				}
+
+				// Set the function call parameters in the response
+				resp.Response.Content = fmt.Sprintf("Execute function %s with arguments: %s", fnCall.Name, string(fnCall.Parameters))
+				resp.Response.FnCall = &fnCall
+				resp.Response.FinishReason = types.FinishReason_FunctionCall
+
+				// Return the response
+				return resp, nil
+			}
+		}
 
 		return resp, nil
 	}

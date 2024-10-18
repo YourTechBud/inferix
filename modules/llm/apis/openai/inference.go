@@ -35,11 +35,10 @@ func HandleChatCompletion(backends *backends.Backends) http.HandlerFunc {
 			toolSelection = "tool"
 			tools = make([]types.Tool, len(req.Tools))
 			for i, tool := range req.Tools {
-				data, _ := json.Marshal(tool.Function.Parameters)
 				tools[i] = types.Tool{
 					Name:        tool.Function.Name,
 					Description: tool.Function.Description,
-					Args:        data,
+					Args:        tool.Function.Parameters,
 					ToolType:    types.Function,
 				}
 			}
@@ -81,7 +80,7 @@ func HandleChatCompletion(backends *backends.Backends) http.HandlerFunc {
 				TotalTokens:      res.Stats.EvalCount + res.Stats.PromptEvalCount,
 			},
 			Choices: []types.ResponseChoice{
-				prepareResponseChoices(res.Response),
+				prepareResponseChoices(res.Response, toolSelection),
 			},
 		}
 

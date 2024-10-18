@@ -16,6 +16,23 @@ func convertToOpenAIRequest(req types.InferenceRequest, opts types.InferenceOpti
 			// TODO: Add tools for backends which support it
 		}
 	}
+
+	// Add the tools in the request
+	var tools []types.ChatCompletionTool = nil
+	if len(req.Tools) > 0 {
+		tools = make([]types.ChatCompletionTool, len(req.Tools))
+		for i, tool := range req.Tools {
+			tools[i] = types.ChatCompletionTool{
+				ToolType: "function",
+				Function: types.FunctionObject{
+					Name:        tool.Name,
+					Description: tool.Description,
+					Parameters:  tool.Args,
+				},
+			}
+		}
+	}
+
 	return types.CreateChatCompletionRequest{
 		Model:     req.Model,
 		Messages:  messages,
@@ -26,8 +43,8 @@ func convertToOpenAIRequest(req types.InferenceRequest, opts types.InferenceOpti
 		TopP:        opts.TopP,
 		N:           1,
 		Stream:      false,
+		Tools:       tools,
 
-		// TODO: Add support for tools for backends which support it
 		// TODO: Add support for structure response for backends which support it
 	}
 }

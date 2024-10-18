@@ -1,13 +1,16 @@
 package ollama
 
 import (
+	"encoding/json"
+
 	"github.com/YourTechBud/inferix/modules/llm/types"
 )
 
 // OllamaRequest represents the structure for the request.
 type OllamaRequest struct {
-	Model    string          `json:"model"`
-	Messages []OllamaMessage `json:"messages"`
+	Model    string                      `json:"model"`
+	Messages []OllamaMessage             `json:"messages"`
+	Tools    []OllamaFunctionCallRequest `json:"tools,omitempty"`
 	// TODO: Add support for tools
 
 	// Optional fields
@@ -17,10 +20,26 @@ type OllamaRequest struct {
 }
 
 type OllamaMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content,omitempty"`
+	Role      string                       `json:"role"`
+	Content   string                       `json:"content,omitempty"`
+	ToolCalls []OllamaFunctionCallResponse `json:"tool_calls,omitempty"`
 
-	// TODO: Add support for tools and images
+	// TODO: Add support for images
+}
+
+type OllamaFunctionCallRequest struct {
+	Type     string              `json:"type"`
+	Function FunctionCallRequest `json:"function"`
+}
+
+type FunctionCallRequest struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Parameters  struct {
+		Type       string          `json:"type"`
+		Properties json.RawMessage `json:"properties"`
+		Required   []string        `json:"required"`
+	} `json:"parameters"`
 }
 
 // OllamaResponse represents the structure for the response.
@@ -35,4 +54,11 @@ type OllamaResponse struct {
 	PromptEvalDuration *uint64       `json:"prompt_eval_duration,omitempty"`
 	EvalCount          *uint64       `json:"eval_count,omitempty"`
 	EvalDuration       *uint64       `json:"eval_duration,omitempty"`
+}
+
+type OllamaFunctionCallResponse struct {
+	Function struct {
+		Name      string          `json:"name"`
+		Arguments json.RawMessage `json:"arguments"`
+	} `json:"function"`
 }

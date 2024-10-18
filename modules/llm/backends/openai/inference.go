@@ -2,6 +2,7 @@ package openai
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -31,13 +32,27 @@ func (backend *OpenAI) RunInference(ctx context.Context, req types.InferenceRequ
 	}
 
 	openaiResp := httpResponse.Data
+
+	// Set the finish reason
+	finishReason := types.FinishReason(openaiResp.Choices[0].FinishReason)
+
+	// Get the tools
+	var fnCall *types.FunctionCall = nil
+	if len(openaiResp.Choices[0].Message.ToolCalls) > 0 {
+		fnCall = &types.FunctionCall{
+			Name:       openaiResp.Choices[0].Message.ToolCalls[0].Function.Name,
+			Parameters: json.RawMessage(openaiResp.Choices[0].Message.ToolCalls[0].Function.Arguments),
+		}
+		finishReason = types.FinishReason_ToolCalls
+	}
+
 	return types.InferenceResponseSync{
 		ID:    openaiResp.ID,
 		Model: openaiReq.Model,
 		Response: types.InferenceResponseMessage{
 			Content:      openaiResp.Choices[0].Message.Content,
-			FinishReason: types.FinishReason(openaiResp.Choices[0].FinishReason),
-			// TODO: Add support to return tool calls for backends which support it
+			FinishReason: finishReason,
+			FnCall:       fnCall,
 		},
 		CreatedAt: time.Unix(openaiResp.Created, 0),
 		Stats: types.InferenceStats{

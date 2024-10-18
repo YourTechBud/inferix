@@ -5,6 +5,7 @@ import (
 
 	"github.com/YourTechBud/inferix/modules/llm/backends/ollama"
 	"github.com/YourTechBud/inferix/modules/llm/backends/openai"
+	"github.com/YourTechBud/inferix/modules/llm/config"
 	"github.com/YourTechBud/inferix/modules/llm/models"
 	"github.com/YourTechBud/inferix/modules/llm/types"
 )
@@ -16,19 +17,19 @@ type Backends struct {
 }
 
 // New creates a new Backends struct
-func New(backends []Config, models *models.Models) (*Backends, error) {
+func New(backends []config.BackendConfig, models *models.Models) (*Backends, error) {
 	backendsMap := make(map[string]types.Backend, len(backends))
 	for _, backendConfig := range backends {
 		switch backendConfig.BackendType {
 		case "openai":
-			backend, err := openai.New(backendConfig.Config)
+			backend, err := openai.New(backendConfig)
 			if err != nil {
 				return nil, err
 			}
 			backendsMap[backendConfig.Name] = backend
 
 		case "ollama":
-			backend, err := ollama.New(backendConfig.Config)
+			backend, err := ollama.New(backendConfig)
 			if err != nil {
 				return nil, err
 			}

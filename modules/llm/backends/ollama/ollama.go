@@ -3,21 +3,28 @@ package ollama
 import (
 	"encoding/json"
 
+	"github.com/YourTechBud/inferix/modules/llm/config"
 	"github.com/YourTechBud/inferix/modules/llm/types"
 )
 
 // Ollama is a struct that handles all interactions with an Ollama backend.
 type Ollama struct {
 	BaseURL string `json:"baseUrl,omitempty"`
+
+	// Other fields
+	options config.BackendOptions `json:"-"`
 }
 
 // New creates a new Ollama backend with the provided configuration.
-func New(config json.RawMessage) (*Ollama, error) {
+func New(config config.BackendConfig) (*Ollama, error) {
 	// Parse the configuration.
 	cfg := new(Ollama)
-	if err := json.Unmarshal(config, cfg); err != nil {
+	if err := json.Unmarshal(config.Config, cfg); err != nil {
 		return nil, err
 	}
+
+	// Don't forget to set the backend options.
+	cfg.options = config.Options
 
 	return cfg, nil
 }

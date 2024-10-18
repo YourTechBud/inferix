@@ -1,5 +1,7 @@
 package types
 
+import "encoding/json"
+
 // CreateChatCompletionRequest represents a request to create a chat completion.
 type CreateChatCompletionRequest struct {
 	Messages         []ChatCompletionRequestMessage  `json:"messages"`
@@ -36,9 +38,14 @@ type ChatCompletionRequestUserMessage struct {
 
 // ChatCompletionMessageToolCall represents a tool call message in the chat completion.
 type ChatCompletionMessageToolCall struct {
-	ID       string       `json:"id"`
-	ToolType ToolType     `json:"type"`
-	Function FunctionCall `json:"function"`
+	ID       string                     `json:"id"`
+	ToolType ToolType                   `json:"type"`
+	Function ChatCompletionFunctionCall `json:"function"`
+}
+
+type ChatCompletionFunctionCall struct {
+	Name      string `json:"name"`
+	Arguments string `json:"arguments"`
 }
 
 // ChatCompletionRequestToolMessage represents a tool message in the chat completion request.
@@ -62,7 +69,7 @@ type ChatCompletionRequestMessage struct {
 	Name         *string                         `json:"name,omitempty"`
 	ToolCallID   *string                         `json:"tool_call_id,omitempty"`
 	ToolCalls    []ChatCompletionMessageToolCall `json:"tool_calls,omitempty"`
-	FunctionCall *FunctionCall                   `json:"function_call,omitempty"`
+	FunctionCall *ChatCompletionFunctionCall     `json:"function_call,omitempty"`
 }
 
 // ChatCompletionFunctionCallOption represents an option to call a function.
@@ -79,9 +86,9 @@ type ChatCompletionFunctions struct {
 
 // FunctionObject represents a function object used in tool-based messages.
 type FunctionObject struct {
-	Description string `json:"description,omitempty"`
-	Name        string `json:"name"`
-	Parameters  any    `json:"parameters,omitempty"`
+	Description string          `json:"description,omitempty"`
+	Name        string          `json:"name"`
+	Parameters  json.RawMessage `json:"parameters,omitempty"`
 }
 
 // ChatCompletionTool represents a tool used in chat completion.
@@ -146,7 +153,7 @@ type ChatCompletionResponseMessage struct {
 	Content      string                          `json:"content,omitempty"`
 	ToolCalls    []ChatCompletionMessageToolCall `json:"tool_calls,omitempty"`
 	Role         string                          `json:"role"`
-	FunctionCall *FunctionCall                   `json:"function_call,omitempty"`
+	FunctionCall *ChatCompletionFunctionCall     `json:"function_call,omitempty"`
 }
 
 // CompletionUsage represents usage information for the chat completion response.
@@ -177,17 +184,17 @@ type StreamingResponseChoice struct {
 // ChatCompletionStreamResponseDelta represents a delta update in the chat completion stream response.
 type ChatCompletionStreamResponseDelta struct {
 	Content      *string                               `json:"content,omitempty"`
-	FunctionCall *FunctionCall                         `json:"function_call,omitempty"`
+	FunctionCall *ChatCompletionFunctionCall           `json:"function_call,omitempty"`
 	ToolCalls    *[]ChatCompletionMessageToolCallChunk `json:"tool_calls,omitempty"`
 	Role         *string                               `json:"role,omitempty"`
 }
 
 // ChatCompletionMessageToolCallChunk represents a chunk of tool call message in the streaming response.
 type ChatCompletionMessageToolCallChunk struct {
-	Index     int           `json:"index"`
-	ID        *string       `json:"id,omitempty"`
-	TypeField *string       `json:"type,omitempty"`
-	Function  *FunctionCall `json:"function,omitempty"`
+	Index     int                         `json:"index"`
+	ID        *string                     `json:"id,omitempty"`
+	TypeField *string                     `json:"type,omitempty"`
+	Function  *ChatCompletionFunctionCall `json:"function,omitempty"`
 }
 
 // OpenAIEmbeddingRequest represents a request to create an embedding.
