@@ -5,8 +5,46 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/YourTechBud/inferix/modules/llm/models"
 	"github.com/YourTechBud/inferix/modules/llm/types"
 )
+
+func (b *Backends) getModelAndBackend(req *types.InferenceRequest, opts *types.InferenceOptions) (models.Config, types.Backend, error) {
+	// Get the model first
+	modelConfig, err := b.models.GetModel(req.Model)
+	if err != nil {
+		return modelConfig, nil, err
+	}
+
+	// Set the target name of the model and update its options with the default ones.
+	req.Model = modelConfig.GetTargetName()
+	modelConfig.MergeOptions(opts)
+
+	// Get the right backend
+	backend, err := b.getBackend(modelConfig.Driver) // TODO: Get the backend based on the model
+	if err != nil {
+		return modelConfig, nil, err
+	}
+
+	return modelConfig, backend, nil
+}
+
+func processInferenceResponse(resp types.InferenceResponse, modelConfig models.Config) types.InferenceResponse {
+	// Update the model name in the response
+	resp.Model = modelConfig.GetName()
+
+	// Generate an id if it doesn't already exist
+	if resp.ID == "" {
+		resp.ID = "inferix" // TODO: Generate a unique id
+	}
+
+	// Inject a default finish reason if it doesn't exist
+	if resp.Done && resp.Response.FinishReason == "" {
+		resp.Response.FinishReason = types.FinishReason_Stop
+	}
+
+	return resp
+}
 
 func (b *Backends) getBackend(name string) (types.Backend, error) {
 	backend, ok := b.backends[name]

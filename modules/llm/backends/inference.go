@@ -13,21 +13,11 @@ import (
 )
 
 // RunInference is a function that runs inference on the backend
-func (b *Backends) RunInference(ctx context.Context, req types.InferenceRequest, opts types.InferenceOptions) (types.InferenceResponseSync, error) {
-	// Get the model first
-	modelConfig, err := b.models.GetModel(req.Model)
+func (b *Backends) RunInference(ctx context.Context, req types.InferenceRequest, opts types.InferenceOptions) (types.InferenceResponse, error) {
+	// Get the model and backend config
+	modelConfig, backend, err := b.getModelAndBackend(&req, &opts)
 	if err != nil {
-		return types.InferenceResponseSync{}, err
-	}
-
-	// Set the target name of the model and update its options with the default ones.
-	req.Model = modelConfig.GetTargetName()
-	modelConfig.MergeOptions(&opts)
-
-	// Get the right backend
-	backend, err := b.getBackend(modelConfig.Driver) // TODO: Get the backend based on the model
-	if err != nil {
-		return types.InferenceResponseSync{}, err
+		return types.InferenceResponse{}, err
 	}
 
 	// Inject function calling prompt if the tools are provided and backend doesn't support it
@@ -44,28 +34,19 @@ func (b *Backends) RunInference(ctx context.Context, req types.InferenceRequest,
 		resp, err := backend.RunInference(ctx, req, opts)
 		if err != nil {
 			log.Default().Printf("unable to run inference: %v", err)
-			return types.InferenceResponseSync{}, err
+			return types.InferenceResponse{}, err
 		}
 
-		// Update the model name in the response
-		resp.Model = modelConfig.GetName()
+		// Process the response
+		resp = processInferenceResponse(resp, modelConfig)
 
+		// Non-streaming processing
 		// Remove all whitespaces from the response
 		resp.Response.Content = strings.TrimSpace(resp.Response.Content)
 
 		// Check if the response is too short
 		if len(resp.Response.Content) < 5 && resp.Response.FnCall == nil {
 			continue
-		}
-
-		// Generate an id if it doesn't already exist
-		if resp.ID == "" {
-			resp.ID = "inferix" // TODO: Generate a unique id
-		}
-
-		// Inject a default finish reason if it doesn't exist
-		if resp.Response.FinishReason == "" {
-			resp.Response.FinishReason = types.FinishReason_Stop
 		}
 
 		// Check for function call in the response if backend did not support it natively
@@ -94,5 +75,32 @@ func (b *Backends) RunInference(ctx context.Context, req types.InferenceRequest,
 		return resp, nil
 	}
 
-	return types.InferenceResponseSync{}, errors.New("unable to generate a response")
+	return types.InferenceResponse{}, errors.New("unable to generate a response")
+}
+
+func (b *Backends) RunStreamingInference(ctx context.Context, req types.InferenceRequest, opts types.InferenceOptions) types.StreamingInferenceResponse {
+	return types.StreamingInferenceResponse(func(yield func(element types.InferenceStreamingResponse) bool) {
+		// Get the model and backend config
+		modelConfig, backend, err := b.getModelAndBackend(&req, &opts)
+		if err != nil {
+			yield(types.InferenceStreamingResponse{Err: err})
+			return
+		}
+
+		// Run the inference
+		stream := backend.RunStreamingInference(ctx, req, opts)
+		for element := range stream {
+			// Check if we have an error
+			if element.Err != nil {
+				yield(types.InferenceStreamingResponse{Err: element.Err})
+				return
+			}
+
+			// Yield the response post processing
+			resp := processInferenceResponse(element.Data, modelConfig)
+			if !yield(types.InferenceStreamingResponse{Data: resp}) {
+				return
+			}
+		}
+	})
 }

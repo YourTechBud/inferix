@@ -14,12 +14,18 @@ type CreateChatCompletionRequest struct {
 	Seed             *int64                          `json:"seed,omitempty"`
 	Stop             *Stop                           `json:"stop,omitempty"`
 	Stream           bool                            `json:"stream,omitempty"`
+	StreamOptions    *ChatCompletionStreamOptions    `json:"stream_options,omitempty"`
 	Temperature      *float64                        `json:"temperature,omitempty"`
 	TopP             *float64                        `json:"top_p,omitempty"`
 	Tools            []ChatCompletionTool            `json:"tools,omitempty"`
 	ToolChoice       *ChatCompletionToolChoiceOption `json:"tool_choice,omitempty"`
 	FunctionCall     *FunctionCallRequest            `json:"function_call,omitempty"`
 	Functions        []ChatCompletionFunctions       `json:"functions,omitempty"`
+}
+
+// ChatCompletionStreamOptions represents the options for a chat completion stream.
+type ChatCompletionStreamOptions struct {
+	IncludeUsage bool `json:"include_usage"`
 }
 
 // ChatCompletionRequestSystemMessage represents a system message in the chat completion request.
@@ -171,22 +177,22 @@ type CreateChatCompletionStreamResponse struct {
 	Model             string                    `json:"model"`
 	SystemFingerprint *string                   `json:"system_fingerprint,omitempty"`
 	Object            string                    `json:"object"`
-	Usage             *Usage                    `json:"usage,omitempty"`
+	Usage             *CompletionUsage          `json:"usage,omitempty"`
 }
 
 // StreamingResponseChoice represents a choice in the streaming response.
 type StreamingResponseChoice struct {
 	Delta        ChatCompletionStreamResponseDelta `json:"delta"`
-	FinishReason *FinishReason                     `json:"finish_reason,omitempty"`
+	FinishReason FinishReason                      `json:"finish_reason,omitempty"`
 	Index        int                               `json:"index"`
 }
 
 // ChatCompletionStreamResponseDelta represents a delta update in the chat completion stream response.
 type ChatCompletionStreamResponseDelta struct {
-	Content      *string                               `json:"content,omitempty"`
+	Role         string                                `json:"role"`
+	Content      string                                `json:"content"`
 	FunctionCall *ChatCompletionFunctionCall           `json:"function_call,omitempty"`
 	ToolCalls    *[]ChatCompletionMessageToolCallChunk `json:"tool_calls,omitempty"`
-	Role         *string                               `json:"role,omitempty"`
 }
 
 // ChatCompletionMessageToolCallChunk represents a chunk of tool call message in the streaming response.
@@ -231,13 +237,6 @@ type EmbeddingObject string
 const (
 	EmbeddingObjectVal EmbeddingObject = "embedding"
 )
-
-// Usage represents the token usage information.
-type Usage struct {
-	PromptTokens     uint64 `json:"prompt_tokens"`
-	CompletionTokens uint64 `json:"completion_tokens"`
-	TotalTokens      uint64 `json:"total_tokens"`
-}
 
 // EmbeddingUsage represents usage information for the embedding request.
 type EmbeddingUsage struct {

@@ -12,7 +12,7 @@ func prepareResponseChoices(response types.InferenceResponseMessage, toolSelecti
 		switch toolSelection {
 		case "tool":
 			toolCalls = []types.ChatCompletionMessageToolCall{
-				types.ChatCompletionMessageToolCall{
+				{
 					ID:       response.FnCall.Name,
 					ToolType: types.Function,
 					Function: types.ChatCompletionFunctionCall{

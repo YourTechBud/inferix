@@ -2,6 +2,7 @@ package openai
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/YourTechBud/inferix/modules/llm/backends"
@@ -25,6 +26,12 @@ func HandleChatCompletion(backends *backends.Backends) http.HandlerFunc {
 				Role:    message.Role,
 				Content: message.Content,
 			}
+		}
+
+		// Don't allow tool use for streaming responses
+		if req.Stream && (len(req.Tools) > 0 || len(req.Functions) > 0) {
+			utils.WriteJSONError(w, utils.NewStandardError(http.StatusBadRequest, "Tools and functions are not allowed for streaming responses", "invalid_request"))
+			return
 		}
 
 		// Prepare the tools
@@ -62,7 +69,74 @@ func HandleChatCompletion(backends *backends.Backends) http.HandlerFunc {
 		opts := types.NewInferenceOptions(req.TopP, nil, req.MaxTokens, req.Temperature)
 
 		// Run the inference
-		res, err := backends.RunInference(r.Context(), *inferenceRequest, opts)
+		if req.Stream {
+			stream := backends.RunStreamingInference(r.Context(), inferenceRequest, opts)
+
+			var once, isDone bool
+
+			for element := range stream {
+				// Handle the error first
+				if element.Err != nil {
+					utils.WriteJSONError(w, element.Err)
+					return
+				}
+
+				// Set the response headers
+				if !once {
+					w.Header().Set("Content-Type", "text/event-stream")
+					w.Header().Set("Cache-Control", "no-cache")
+					w.Header().Set("Connection", "keep-alive")
+
+					once = true
+				}
+
+				// Prepare the response
+				delta := types.ChatCompletionStreamResponseDelta{}
+				delta.Content = element.Data.Response.Content
+				delta.Role = "assistant"
+
+				var usage *types.CompletionUsage = nil
+				if element.Data.Stats != nil {
+					usage = &types.CompletionUsage{
+						CompletionTokens: element.Data.Stats.EvalCount,
+						PromptTokens:     element.Data.Stats.PromptEvalCount,
+						TotalTokens:      element.Data.Stats.EvalCount + element.Data.Stats.PromptEvalCount,
+					}
+				}
+
+				// Prepare the choices
+				choices := make([]types.StreamingResponseChoice, 0, 1)
+				if !isDone {
+					choices = append(choices, types.StreamingResponseChoice{
+						Index:        0,
+						Delta:        delta,
+						FinishReason: element.Data.Response.FinishReason,
+					})
+
+					isDone = element.Data.Done
+				}
+
+				response := types.CreateChatCompletionStreamResponse{
+					ID:      element.Data.ID,
+					Model:   element.Data.Model,
+					Object:  "chat.completion",
+					Created: element.Data.CreatedAt.Unix(),
+					Choices: choices,
+					Usage:   usage,
+				}
+
+				data, _ := json.Marshal(response)
+				fmt.Fprintf(w, "data: %s\n\n", data)
+				w.(http.Flusher).Flush()
+			}
+
+			// Send the done message
+			fmt.Fprint(w, "data: [DONE]\n\n")
+			w.(http.Flusher).Flush()
+			return
+		}
+
+		res, err := backends.RunInference(r.Context(), inferenceRequest, opts)
 		if err != nil {
 			utils.WriteJSONError(w, err)
 			return

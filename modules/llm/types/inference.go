@@ -12,8 +12,8 @@ type InferenceRequest struct {
 	OutputFormat *OutputFormat      `json:"format,omitempty"`
 }
 
-func NewInferenceRequest(model string, messages []InferenceMessage, tools []Tool) *InferenceRequest {
-	return &InferenceRequest{
+func NewInferenceRequest(model string, messages []InferenceMessage, tools []Tool) InferenceRequest {
+	return InferenceRequest{
 		Model:    model,
 		Messages: messages,
 		Tools:    tools,
@@ -77,20 +77,18 @@ func DefaultInferenceOptions() InferenceOptions {
 	}
 }
 
-type InferenceResponseSync struct {
+type InferenceResponse struct {
 	ID        string                   `json:"id"`
 	Model     string                   `json:"model"`
 	CreatedAt time.Time                `json:"created_at"`
 	Response  InferenceResponseMessage `json:"response"`
-	Stats     InferenceStats           `json:"stats"`
+	Stats     *InferenceStats          `json:"stats"`
+	Done      bool                     `json:"done"`
 }
 
-type InferenceResponseStream struct {
-	Model        string                   `json:"model"`
-	CreatedAt    time.Time                `json:"created_at"`
-	Response     InferenceResponseMessage `json:"response"`
-	FinishReason *FinishReason            `json:"finish_reason,omitempty"`
-	Stats        *InferenceStats          `json:"stats,omitempty"`
+type InferenceStreamingResponse struct {
+	Data InferenceResponse
+	Err  error
 }
 
 type InferenceResponseMessage struct {
