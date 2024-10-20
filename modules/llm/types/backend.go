@@ -9,6 +9,8 @@ type Backend interface {
 	RunInference(ctx context.Context, req InferenceRequest, opts InferenceOptions) (InferenceResponse, error)
 	RunStreamingInference(ctx context.Context, req InferenceRequest, opts InferenceOptions) StreamingInferenceResponse
 
+	CreateEmbeddings(ctx context.Context, req EmbeddingRequest) (EmbeddingResponse, error)
+
 	RunFnInjection() bool
 }
 

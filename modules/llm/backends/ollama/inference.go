@@ -11,6 +11,7 @@ import (
 	"github.com/YourTechBud/inferix/utils"
 )
 
+// RunInference runs an inference request using the Ollama backend.
 func (backend *Ollama) RunInference(ctx context.Context, req types.InferenceRequest, opts types.InferenceOptions) (types.InferenceResponse, error) {
 	ollamaReq := convertToOllamaRequest(req, opts)
 
@@ -66,6 +67,7 @@ func (backend *Ollama) RunInference(ctx context.Context, req types.InferenceRequ
 	}, nil
 }
 
+// RunStreamingInference runs a streaming inference request using the Ollama backend.
 func (backend *Ollama) RunStreamingInference(ctx context.Context, req types.InferenceRequest, opts types.InferenceOptions) types.StreamingInferenceResponse {
 	return func(yield func(element types.InferenceStreamingResponse) bool) {
 		ollamaRequest := convertToOllamaRequest(req, opts)

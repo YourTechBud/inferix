@@ -5,6 +5,7 @@ import "github.com/YourTechBud/inferix/modules/llm/types"
 // Config represents the configuration for a model
 type Config struct {
 	Name           string        `json:"name"`
+	Aliases        []string      `json:"aliases,omitempty"`
 	Driver         string        `json:"driver"`
 	TargetName     string        `json:"target_name,omitempty"`
 	DefaultOptions *ModelOptions `json:"default_options,omitempty"`

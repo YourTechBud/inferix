@@ -5,6 +5,7 @@ import (
 
 	"github.com/YourTechBud/inferix/modules/llm/backends/ollama"
 	"github.com/YourTechBud/inferix/modules/llm/backends/openai"
+	"github.com/YourTechBud/inferix/modules/llm/backends/tei"
 	"github.com/YourTechBud/inferix/modules/llm/config"
 	"github.com/YourTechBud/inferix/modules/llm/models"
 	"github.com/YourTechBud/inferix/modules/llm/types"
@@ -30,6 +31,13 @@ func New(backends []config.BackendConfig, models *models.Models) (*Backends, err
 
 		case "ollama":
 			backend, err := ollama.New(backendConfig)
+			if err != nil {
+				return nil, err
+			}
+			backendsMap[backendConfig.Name] = backend
+
+		case "tei":
+			backend, err := tei.New(backendConfig)
 			if err != nil {
 				return nil, err
 			}

@@ -13,6 +13,11 @@ func New(modelConfigs []Config) *Models {
 			model.DefaultOptions = DefaultModelOptions()
 		}
 		models[model.Name] = model
+
+		// Add aliases
+		for _, alias := range model.Aliases {
+			models[alias] = model
+		}
 	}
 	return &Models{models}
 }

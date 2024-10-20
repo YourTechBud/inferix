@@ -62,3 +62,20 @@ type OllamaFunctionCallResponse struct {
 		Arguments json.RawMessage `json:"arguments"`
 	} `json:"function"`
 }
+
+// Types for creating embeddings
+type OllamaEmbeddingsRequest struct {
+	types.EmbeddingRequest
+
+	// Optional fields
+	Truncate bool           `json:"truncate,omitempty"`
+	Options  map[string]any `json:"options,omitempty"` // Raw JSON value
+}
+
+type OllamaEmbeddingsResponse struct {
+	Model           string      `json:"model"`
+	Embeddings      [][]float32 `json:"embeddings"`
+	TotalDuration   uint64      `json:"total_duration"`
+	LoadDuration    uint64      `json:"load_duration"`
+	PromptEvalCount uint64      `json:"prompt_eval_count"`
+}

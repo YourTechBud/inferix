@@ -12,5 +12,6 @@ type BackendConfig struct {
 
 // BackendOptions is a struct for backend options
 type BackendOptions struct {
-	InjectFnCallPrompt bool `json:"injectFnCallPrompt"`
+	InjectFnCallPrompt  bool `json:"injectFnCallPrompt"`
+	EnableEmbeddingsAPI bool `json:"enableEmbeddingsApi"`
 }
