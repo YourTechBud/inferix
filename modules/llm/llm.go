@@ -1,6 +1,8 @@
 package llm
 
 import (
+	"encoding/json"
+
 	"github.com/YourTechBud/inferix/modules/llm/backends"
 	"github.com/YourTechBud/inferix/modules/llm/config"
 	"github.com/YourTechBud/inferix/modules/llm/models"
@@ -14,7 +16,13 @@ type LLM struct {
 }
 
 // New creates a new LLM struct
-func New(config config.Config) (*LLM, error) {
+func New(cfg json.RawMessage) (*LLM, error) {
+	// Unmarshal the configuration
+	config := new(config.Config)
+	if err := json.Unmarshal(cfg, config); err != nil {
+		return nil, err
+	}
+
 	// Create a new models struct
 	models := models.New(config.Models)
 

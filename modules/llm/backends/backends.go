@@ -27,21 +27,21 @@ func New(backends []config.BackendConfig, models *models.Models) (*Backends, err
 			if err != nil {
 				return nil, err
 			}
-			backendsMap[backendConfig.Name] = backend
+			backendsMap[backendConfig.ID] = backend
 
 		case "ollama":
 			backend, err := ollama.New(backendConfig)
 			if err != nil {
 				return nil, err
 			}
-			backendsMap[backendConfig.Name] = backend
+			backendsMap[backendConfig.ID] = backend
 
 		case "tei":
 			backend, err := tei.New(backendConfig)
 			if err != nil {
 				return nil, err
 			}
-			backendsMap[backendConfig.Name] = backend
+			backendsMap[backendConfig.ID] = backend
 
 		default:
 			return nil, errors.New("unknown backend type")

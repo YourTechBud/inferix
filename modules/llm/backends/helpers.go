@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/YourTechBud/inferix/modules/llm/models"
+	"github.com/YourTechBud/inferix/modules/llm/config"
 	"github.com/YourTechBud/inferix/modules/llm/types"
 )
 
-func (b *Backends) getModelAndBackend(req *types.InferenceRequest, opts *types.InferenceOptions) (models.Config, types.Backend, error) {
+func (b *Backends) getModelAndBackend(req *types.InferenceRequest, opts *types.InferenceOptions) (config.ModelConfig, types.Backend, error) {
 	// Get the model first
 	modelConfig, err := b.models.GetModel(req.Model)
 	if err != nil {
@@ -17,11 +17,11 @@ func (b *Backends) getModelAndBackend(req *types.InferenceRequest, opts *types.I
 	}
 
 	// Set the target name of the model and update its options with the default ones.
-	req.Model = modelConfig.GetTargetName()
+	req.Model = modelConfig.GetTarget()
 	modelConfig.MergeOptions(opts)
 
 	// Get the right backend
-	backend, err := b.getBackend(modelConfig.Driver) // TODO: Get the backend based on the model
+	backend, err := b.getBackend(modelConfig.Backend) // TODO: Get the backend based on the model
 	if err != nil {
 		return modelConfig, nil, err
 	}
@@ -29,9 +29,9 @@ func (b *Backends) getModelAndBackend(req *types.InferenceRequest, opts *types.I
 	return modelConfig, backend, nil
 }
 
-func processInferenceResponse(resp types.InferenceResponse, modelConfig models.Config) types.InferenceResponse {
+func processInferenceResponse(resp types.InferenceResponse, modelConfig config.ModelConfig) types.InferenceResponse {
 	// Update the model name in the response
-	resp.Model = modelConfig.GetName()
+	resp.Model = modelConfig.GetID()
 
 	// Generate an id if it doesn't already exist
 	if resp.ID == "" {

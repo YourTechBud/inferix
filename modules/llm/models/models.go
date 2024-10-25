@@ -2,24 +2,26 @@ package models
 
 import (
 	"strings"
+
+	"github.com/YourTechBud/inferix/modules/llm/config"
 )
 
 // Models stores the model configurations
 type Models struct {
-	models map[string]Config
+	models map[string]config.ModelConfig
 }
 
 // New initializes the models map with the given configurations
-func New(modelConfigs []Config) *Models {
-	models := make(map[string]Config)
+func New(modelConfigs []config.ModelConfig) *Models {
+	models := make(map[string]config.ModelConfig)
 	for _, model := range modelConfigs {
 		// Trim whitespace
-		model.Name = strings.TrimSpace(model.Name)
+		model.ID = strings.TrimSpace(model.ID)
 
 		if model.DefaultOptions == nil {
-			model.DefaultOptions = DefaultModelOptions()
+			model.DefaultOptions = config.DefaultModelOptions()
 		}
-		models[model.Name] = model
+		models[model.ID] = model
 
 		// Add aliases
 		for _, alias := range model.Aliases {

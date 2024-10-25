@@ -1,8 +1,8 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
-	"net/http"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -12,21 +12,26 @@ import (
 
 var (
 	// Used for flags
-	configFilePath string
+	configDriver string
+	configPath   string
 
 	rootCmd = &cobra.Command{
 		Use:   "inferix",
 		Short: "Inferix is a OpenAI compatible backend to build Generative AI applications.",
 		Run: func(cmd *cobra.Command, args []string) {
-
 			// Create the server
-			router, err := server.New(configFilePath)
+			router, err := server.New(server.Options{
+				ConfigDriver: server.ConfigDriverType(configDriver),
+				ConfigPath:   configPath,
+			})
 			if err != nil {
 				panic(err)
 			}
 
-			fmt.Println("Starting server on port 4386")
-			http.ListenAndServe(":4386", router)
+			// Start the server
+			if err := router.Start(context.TODO()); err != nil {
+				panic(err)
+			}
 		},
 	}
 )
@@ -40,5 +45,6 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.Flags().StringVar(&configFilePath, "config", "inferix.yaml", "Path to your config file.")
+	rootCmd.Flags().StringVar(&configDriver, "config-driver", "file", "The configuration driver to use.")
+	rootCmd.Flags().StringVar(&configPath, "config-path", "inferix.yaml", "Path to your configuration.")
 }

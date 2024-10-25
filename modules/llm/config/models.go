@@ -1,27 +1,27 @@
-package models
+package config
 
 import "github.com/YourTechBud/inferix/modules/llm/types"
 
-// Config represents the configuration for a model
-type Config struct {
-	Name           string        `json:"name"`
+// ModelConfig represents the configuration for a model
+type ModelConfig struct {
+	ID             string        `json:"id" validate:"required"`
 	Aliases        []string      `json:"aliases,omitempty"`
-	Driver         string        `json:"driver"`
-	TargetName     string        `json:"target_name,omitempty"`
+	Backend        string        `json:"backend" validate:"required"`
+	Target         string        `json:"target,omitempty"`
 	DefaultOptions *ModelOptions `json:"default_options,omitempty"`
 }
 
 // GetName returns the model's name
-func (m *Config) GetName() string {
-	return m.Name
+func (m *ModelConfig) GetID() string {
+	return m.ID
 }
 
-// GetTargetName returns the target name if present, otherwise the model's name
-func (m *Config) GetTargetName() string {
-	if m.TargetName != "" {
-		return m.TargetName
+// GetTarget returns the target name if present, otherwise the model's name
+func (m *ModelConfig) GetTarget() string {
+	if m.Target != "" {
+		return m.Target
 	}
-	return m.Name
+	return m.ID
 }
 
 // ModelOptions represents options for configuring a model
@@ -41,7 +41,7 @@ func DefaultModelOptions() *ModelOptions {
 }
 
 // MergeOptions merges the given options with the default options. It modifies the given options directly.
-func (m *Config) MergeOptions(opts *types.InferenceOptions) {
+func (m *ModelConfig) MergeOptions(opts *types.InferenceOptions) {
 	if opts.NumCtx == nil {
 		opts.NumCtx = m.DefaultOptions.NumCtx
 	}

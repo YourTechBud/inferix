@@ -1,9 +1,10 @@
 package ollama
 
 import (
+	"encoding/json"
+
 	"github.com/YourTechBud/inferix/modules/llm/config"
 	"github.com/YourTechBud/inferix/modules/llm/types"
-	"github.com/goccy/go-yaml"
 )
 
 // Ollama is a struct that handles all interactions with an Ollama backend.
@@ -18,7 +19,7 @@ type Ollama struct {
 func New(config config.BackendConfig) (*Ollama, error) {
 	// Parse the configuration.
 	cfg := new(Ollama)
-	if err := yaml.Unmarshal(config.Config, cfg); err != nil {
+	if err := json.Unmarshal(config.Config, cfg); err != nil {
 		return nil, err
 	}
 

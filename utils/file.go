@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"io"
 	"os"
 
@@ -17,13 +18,49 @@ func ReadYAMLFile(path string, vPtr any) error {
 	defer file.Close()
 
 	// Read file contents
-	content, err := io.ReadAll(file)
+	yamlContent, err := io.ReadAll(file)
 	if err != nil {
 		return err
 	}
 
-	// Unmarshal the YAML content into the provided structure
-	err = yaml.Unmarshal(content, vPtr)
+	// Convert YAML to JSON because we are fans of JSON
+	jsonContent, err := yaml.YAMLToJSON(yamlContent)
+	if err != nil {
+		return err
+	}
+
+	// Unmarshal the json content into the provided structure
+	err = json.Unmarshal(jsonContent, vPtr)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// WriteYAMLFile writes a structure to a file as YAML
+func WriteYAMLFile(path string, v any) error {
+	// Convert the structure to JSON
+	jsonContent, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	// Convert JSON to YAML
+	yamlContent, err := yaml.JSONToYAML(jsonContent)
+	if err != nil {
+		return err
+	}
+
+	// Open a file descriptor
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	// Write the YAML content to the file
+	_, err = file.Write(yamlContent)
 	if err != nil {
 		return err
 	}

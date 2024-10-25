@@ -1,9 +1,10 @@
 package openai
 
 import (
+	"encoding/json"
+
 	"github.com/YourTechBud/inferix/modules/llm/config"
 	"github.com/YourTechBud/inferix/modules/llm/types"
-	"github.com/goccy/go-yaml"
 )
 
 // OpenAI is a struct that handles all interactions with an OpenAI API compatible backend.
@@ -19,7 +20,7 @@ type OpenAI struct {
 func New(config config.BackendConfig) (*OpenAI, error) {
 	// Parse the configuration.
 	cfg := new(OpenAI)
-	if err := yaml.Unmarshal(config.Config, cfg); err != nil {
+	if err := json.Unmarshal(config.Config, cfg); err != nil {
 		return nil, err
 	}
 

@@ -15,10 +15,10 @@ func (b *Backends) CreateEmbeddings(ctx context.Context, req types.EmbeddingRequ
 	}
 
 	// Set the target name of the model
-	req.Model = modelConfig.GetTargetName()
+	req.Model = modelConfig.GetTarget()
 
 	// Get the backend
-	backend, err := b.getBackend(modelConfig.Driver)
+	backend, err := b.getBackend(modelConfig.Backend)
 	if err != nil {
 		return types.EmbeddingResponse{}, err
 	}
@@ -30,7 +30,7 @@ func (b *Backends) CreateEmbeddings(ctx context.Context, req types.EmbeddingRequ
 	}
 
 	// Don't forget to set the model name back
-	response.Model = modelConfig.GetName()
+	response.Model = modelConfig.GetID()
 
 	return response, nil
 }
