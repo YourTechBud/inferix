@@ -54,3 +54,43 @@ func SetValueAtPath(obj map[string]any, path string, value any) {
 		obj = next.(map[string]any)
 	}
 }
+
+// MergeMaps recursively merges the src map into the dst map
+func MergeMaps(dst, src map[string]any) {
+	// Return if the source is nil
+	if src == nil {
+		return
+	}
+
+	for k, v := range src {
+		if _, ok := dst[k]; !ok {
+			dst[k] = v
+		} else {
+			// Check if the value is an array
+			if srcValue, ok := v.([]any); ok {
+				// First check if the destination is an array
+				destValue, ok := dst[k].([]any)
+				if !ok {
+					// Simply set the value
+					dst[k] = v
+					continue
+				}
+
+				// Append the values
+				dst[k] = append(destValue, srcValue...)
+			} else if srcValue, ok := v.(map[string]any); ok {
+				// First check if the destination is a map
+				destValue, ok := dst[k].(map[string]any)
+				if !ok {
+					// Simply set the value
+					dst[k] = v
+					continue
+				}
+
+				MergeMaps(destValue, srcValue)
+			} else {
+				dst[k] = v
+			}
+		}
+	}
+}

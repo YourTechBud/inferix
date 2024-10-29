@@ -16,6 +16,11 @@ type FileConfigDriver struct {
 
 // NewFileConfigDriver creates a new FileConfigDriver
 func NewFileConfigDriver(opts Options) (*FileConfigDriver, error) {
+	// Throw an error if the default config path is set
+	if opts.DefaultConfigPath != "" {
+		return nil, fmt.Errorf("default config path is not supported for file config driver")
+	}
+
 	// Read the yaml file from the path provided
 	var cfg map[string]any
 	if err := utils.ReadYAMLFile(opts.ConfigPath, &cfg); err != nil {

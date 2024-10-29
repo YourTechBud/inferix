@@ -139,8 +139,160 @@ func TestSetValueAtPath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			SetValueAtPath(tt.obj, tt.path, tt.value)
-			if !assert.Equal(t, tt.obj, tt.expected) {
+			if !assert.Equal(t, tt.expected, tt.obj) {
 				t.Errorf("expected %v, got %v", tt.expected, tt.obj)
+			}
+		})
+	}
+}
+
+func TestMergeMaps(t *testing.T) {
+	tests := []struct {
+		name     string
+		dst      map[string]any
+		src      map[string]any
+		expected map[string]any
+	}{
+		{
+			name: "src nil",
+			dst: map[string]any{
+				"key1": "value1",
+			},
+			src: nil,
+			expected: map[string]any{
+				"key1": "value1",
+			},
+		},
+		{
+			name: "simple merge",
+			dst: map[string]any{
+				"key1": "value1",
+			},
+			src: map[string]any{
+				"key2": "value2",
+			},
+			expected: map[string]any{
+				"key1": "value1",
+				"key2": "value2",
+			},
+		},
+		{
+			name: "nested merge",
+			dst: map[string]any{
+				"key1": map[string]any{
+					"key2": "value2",
+				},
+			},
+			src: map[string]any{
+				"key1": map[string]any{
+					"key3": "value3",
+				},
+			},
+			expected: map[string]any{
+				"key1": map[string]any{
+					"key2": "value2",
+					"key3": "value3",
+				},
+			},
+		},
+		{
+			name: "overwrite value",
+			dst: map[string]any{
+				"key1": "value1",
+			},
+			src: map[string]any{
+				"key1": "newValue1",
+			},
+			expected: map[string]any{
+				"key1": "newValue1",
+			},
+		},
+		{
+			name: "merge with empty dst",
+			dst:  map[string]any{},
+			src: map[string]any{
+				"key1": "value1",
+			},
+			expected: map[string]any{
+				"key1": "value1",
+			},
+		},
+		{
+			name: "merge with empty src",
+			dst: map[string]any{
+				"key1": "value1",
+			},
+			src: map[string]any{},
+			expected: map[string]any{
+				"key1": "value1",
+			},
+		},
+		{
+			name: "complex nested merge",
+			dst: map[string]any{
+				"key1": map[string]any{
+					"key2": "value2",
+					"key3": map[string]any{
+						"key4": "value4",
+					},
+				},
+			},
+			src: map[string]any{
+				"key1": map[string]any{
+					"key3": map[string]any{
+						"key5": "value5",
+					},
+					"key6": "value6",
+				},
+			},
+			expected: map[string]any{
+				"key1": map[string]any{
+					"key2": "value2",
+					"key3": map[string]any{
+						"key4": "value4",
+						"key5": "value5",
+					},
+					"key6": "value6",
+				},
+			},
+		},
+		{
+			name: "array appending",
+			dst: map[string]any{
+				"key1": []any{"value1"},
+			},
+			src: map[string]any{
+				"key1": []any{"value2"},
+			},
+			expected: map[string]any{
+				"key1": []any{"value1", "value2"},
+			},
+		},
+		{
+			name: "array appending with nested map",
+			dst: map[string]any{
+				"key1": map[string]any{
+					"key2": []any{"value1"},
+				},
+			},
+			src: map[string]any{
+				"key1": map[string]any{
+					"key2": []any{"value2"},
+				},
+			},
+			expected: map[string]any{
+				"key1": map[string]any{
+					"key2": []any{"value1", "value2"},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			MergeMaps(tt.dst, tt.src)
+			if !assert.Equal(t, tt.expected, tt.dst) {
+				t.Errorf("expected %v, got %v", tt.expected, tt.dst)
 			}
 		})
 	}

@@ -8,8 +8,9 @@ import (
 type (
 	// The main configuration struct for the server
 	Options struct {
-		ConfigDriver ConfigDriverType `json:"config_driver"`
-		ConfigPath   string           `json:"config_path"`
+		ConfigDriver      ConfigDriverType
+		ConfigPath        string
+		DefaultConfigPath string
 	}
 
 	// ConfigDriverType is the type of configuration driver to use

@@ -12,8 +12,9 @@ import (
 
 var (
 	// Used for flags
-	configDriver string
-	configPath   string
+	configDriver      string
+	configPath        string
+	defaultConfigPath string
 
 	rootCmd = &cobra.Command{
 		Use:   "inferix",
@@ -21,8 +22,9 @@ var (
 		Run: func(cmd *cobra.Command, args []string) {
 			// Create the server
 			router, err := server.New(server.Options{
-				ConfigDriver: server.ConfigDriverType(configDriver),
-				ConfigPath:   configPath,
+				ConfigDriver:      server.ConfigDriverType(configDriver),
+				ConfigPath:        configPath,
+				DefaultConfigPath: defaultConfigPath,
 			})
 			if err != nil {
 				panic(err)
@@ -47,4 +49,5 @@ func Execute() {
 func init() {
 	rootCmd.Flags().StringVar(&configDriver, "config-driver", "file", "The configuration driver to use.")
 	rootCmd.Flags().StringVar(&configPath, "config-path", "inferix.yaml", "Path to your configuration.")
+	rootCmd.Flags().StringVar(&defaultConfigPath, "default-config-path", "", "Path to your default configuration.")
 }

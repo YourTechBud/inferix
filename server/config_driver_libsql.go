@@ -13,7 +13,8 @@ import (
 
 // LibSQLConfigDriver manages the configuration stored in a sqlite database
 type LibSQLConfigDriver struct {
-	db *sqlx.DB
+	db            *sqlx.DB
+	defaultConfig map[string]any
 }
 
 // NewLibSQLConfigDriver creates a new SqliteConfigDriver
@@ -23,13 +24,23 @@ func NewLibSQLConfigDriver(opts Options) (*LibSQLConfigDriver, error) {
 		return nil, err
 	}
 
+	// Load the default configuration if provided
+	var defaultConfig map[string]any
+	if opts.DefaultConfigPath != "" {
+		// Read the default configuration
+		if err := utils.ReadYAMLFile(opts.DefaultConfigPath, &defaultConfig); err != nil {
+			return nil, err
+		}
+	}
+
 	// Create the table
 	if _, err := db.Exec(sqliteConfigSchema); err != nil {
 		return nil, err
 	}
 
 	return &LibSQLConfigDriver{
-		db: db,
+		db:            db,
+		defaultConfig: defaultConfig,
 	}, nil
 }
 
@@ -46,6 +57,10 @@ func (s *LibSQLConfigDriver) ReadAll(ctx context.Context) (json.RawMessage, erro
 	if _, p := cfg["llm"]; !p {
 		cfg["llm"] = map[string]any{}
 	}
+
+	// Merge with the default configuration
+	// The default config always has the highest priority
+	utils.MergeMaps(cfg, s.defaultConfig)
 
 	// Convert the map to JSON
 	return json.Marshal(cfg)
