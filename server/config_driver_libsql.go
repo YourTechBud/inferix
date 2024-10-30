@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/YourTechBud/inferix/utils"
@@ -19,7 +20,13 @@ type LibSQLConfigDriver struct {
 
 // NewLibSQLConfigDriver creates a new SqliteConfigDriver
 func NewLibSQLConfigDriver(opts Options) (*LibSQLConfigDriver, error) {
-	db, err := sqlx.Open("libsql", opts.ConfigPath)
+	// First create the containing directory if it doesn't exist
+	if err := utils.CreateDirIfNotExists(opts.ConfigPath); err != nil {
+		return nil, err
+	}
+
+	// Open the database
+	db, err := sqlx.Open("libsql", fmt.Sprintf("file://%s", opts.ConfigPath))
 	if err != nil {
 		return nil, err
 	}
@@ -42,6 +49,10 @@ func NewLibSQLConfigDriver(opts Options) (*LibSQLConfigDriver, error) {
 		db:            db,
 		defaultConfig: defaultConfig,
 	}, nil
+}
+
+func (s *LibSQLConfigDriver) Close() error {
+	return s.db.Close()
 }
 
 func (s *LibSQLConfigDriver) ReadAll(ctx context.Context) (json.RawMessage, error) {

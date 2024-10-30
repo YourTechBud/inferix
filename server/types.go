@@ -3,14 +3,17 @@ package server
 import (
 	"context"
 	"encoding/json"
+
+	"github.com/go-chi/chi/v5"
 )
 
 type (
 	// The main configuration struct for the server
 	Options struct {
-		ConfigDriver      ConfigDriverType
-		ConfigPath        string
-		DefaultConfigPath string
+		ConfigDriver           ConfigDriverType
+		ConfigPath             string
+		DefaultConfigPath      string
+		CreateDefaultWorkspace bool
 	}
 
 	// ConfigDriverType is the type of configuration driver to use
@@ -24,10 +27,27 @@ type (
 		Get(ctx context.Context, module, path string) (json.RawMessage, error)
 		DeleteFromArray(ctx context.Context, module, path, id string) error
 		DeleteFromObject(ctx context.Context, module, path, id string) error
+		Close() error
 	}
+
+	// Module describes the methods that a module must implement
+	Module interface {
+		Routes() chi.Router
+		Close() error
+	}
+
+	// ServerContext holds the context for the server
+	ServerContext struct {
+		tenant, workspace string
+	}
+
+	// ServerContextKeyType is the type for the server context key
+	ServerContextKeyType string
 )
 
 const (
+	ServerContextKey ServerContextKeyType = "server_context"
+
 	ConfigDriverType_File   ConfigDriverType = "file"
 	ConfigDriverType_LibSQL ConfigDriverType = "libsql"
 )

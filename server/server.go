@@ -5,51 +5,33 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
-
-	"github.com/go-chi/chi/v5"
-
-	llmconfig "github.com/YourTechBud/inferix/modules/llm/config"
 )
 
 type Server struct {
-	configDriver ConfigDriver
+	options Options
 
-	chanUpdateConfig chan struct{}
-
-	moduleLock sync.RWMutex
-	modules    map[string]chi.Router
+	// Workspace related stuff
+	lock       sync.RWMutex
+	workspaces map[string]*Workspace
 }
 
 func New(opts Options) (*Server, error) {
-	// Initialise the config driver
-	configDriver, err := initialiseConfigDriver(opts)
-	if err != nil {
-		return nil, err
-	}
-
 	return &Server{
-		configDriver:     configDriver,
-		chanUpdateConfig: make(chan struct{}, 5),
-		modules:          make(map[string]chi.Router),
+		options:    opts,
+		workspaces: make(map[string]*Workspace),
 	}, nil
 }
 
 func (s *Server) Start(ctx context.Context) error {
-	// Configure the modules
-	if err := s.configureModules(ctx); err != nil {
-		return err
+	// Create a default workspace for the default tenant
+	if s.options.CreateDefaultWorkspace {
+		if err := s.NewWorkspace(ctx, "default", "default"); err != nil {
+			return err
+		}
 	}
 
-	// Start the module config updater
-	go s.configUpdater()
-
 	// Setup the router
-	router := chi.NewRouter()
-	router.Mount("/inferix/v1/llm", s.createModuleRouter("llm"))
-	router.Mount("/inferix/v1/config/llm", s.createConfigRoutes("llm", llmconfig.GetConfigurationResources()))
-
-	// Setup the global config route
-	router.Get("/inferix/v1/config", s.getGlobalConfigHandler())
+	router := s.router()
 
 	// Start the server
 	fmt.Println("Starting server on port 4386")

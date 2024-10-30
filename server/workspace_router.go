@@ -6,33 +6,47 @@ import (
 	"log"
 	"net/http"
 
+	llmconfig "github.com/YourTechBud/inferix/modules/llm/config"
 	"github.com/YourTechBud/inferix/utils"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
 )
 
-func (s *Server) createModuleRouter(module string) http.Handler {
+func (workspace *Workspace) intializeRouter() {
+	router := chi.NewRouter()
+
+	// Setup module specific routes
+	router.Mount("/llm", workspace.createModuleRouter("llm"))
+	router.Mount("/config/llm", workspace.createConfigRoutes("llm", llmconfig.GetConfigurationResources()))
+
+	// Setup the global config route
+	router.Get("/config", workspace.getGlobalConfigHandler())
+
+	workspace.router = router
+}
+
+func (workspace *Workspace) createModuleRouter(module string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// First acquire a read lock
-		s.moduleLock.RLock()
-		defer s.moduleLock.RUnlock()
+		workspace.lock.RLock()
+		defer workspace.lock.RUnlock()
 
 		// Get the module
-		router, ok := s.modules[module]
+		module, ok := workspace.modules[module]
 		if !ok {
 			utils.WriteJSONError(w, utils.NewStandardError(http.StatusBadRequest, "Module not found", "invalid_module"))
 			return
 		}
 
 		// Let the module handle the request
-		router.ServeHTTP(w, r)
+		module.Routes().ServeHTTP(w, r)
 	})
 }
 
-func (s *Server) getGlobalConfigHandler() http.HandlerFunc {
+func (workspace *Workspace) getGlobalConfigHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Get the config
-		config, err := s.configDriver.ReadAll(r.Context())
+		config, err := workspace.configDriver.ReadAll(r.Context())
 		if err != nil {
 			utils.WriteJSONError(w, utils.NewStandardError(http.StatusInternalServerError, "Error reading configuration", "config_error"))
 			return
@@ -43,19 +57,19 @@ func (s *Server) getGlobalConfigHandler() http.HandlerFunc {
 	}
 }
 
-func (s *Server) createConfigRoutes(module string, resources []utils.ResourceConfiguration) http.Handler {
+func (workspace *Workspace) createConfigRoutes(module string, resources []utils.ResourceConfiguration) http.Handler {
 	router := chi.NewRouter()
 
 	for _, resource := range resources {
-		router.Post(fmt.Sprintf("/%s", resource.Path), s.configSetHandler(module, resource))
-		router.Get(fmt.Sprintf("/%s", resource.Path), s.configGetHandler(module, resource))
-		router.Delete(fmt.Sprintf("/%s/{id}", resource.Path), s.configDeleteHandler(module, resource))
+		router.Post(fmt.Sprintf("/%s", resource.Path), workspace.configSetHandler(module, resource))
+		router.Get(fmt.Sprintf("/%s", resource.Path), workspace.configGetHandler(module, resource))
+		router.Delete(fmt.Sprintf("/%s/{id}", resource.Path), workspace.configDeleteHandler(module, resource))
 	}
 
 	return router
 }
 
-func (s *Server) configSetHandler(module string, cfg utils.ResourceConfiguration) http.HandlerFunc {
+func (workspace *Workspace) configSetHandler(module string, cfg utils.ResourceConfiguration) http.HandlerFunc {
 	validate := validator.New(validator.WithRequiredStructEnabled())
 
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -79,12 +93,12 @@ func (s *Server) configSetHandler(module string, cfg utils.ResourceConfiguration
 		// Write the resource to the config store
 		switch cfg.Type {
 		case utils.ConfigResourceType_Object:
-			if err := s.configDriver.SetInObject(r.Context(), module, cfg.Path, resource.GetID(), resource); err != nil {
+			if err := workspace.configDriver.SetInObject(r.Context(), module, cfg.Path, resource.GetID(), resource); err != nil {
 				utils.WriteJSONError(w, utils.NewStandardError(http.StatusInternalServerError, fmt.Sprintf("Error writing configuration: %s", err), "config_error"))
 				return
 			}
 		case utils.ConfigResourceType_Array:
-			if err := s.configDriver.SetInArray(r.Context(), module, cfg.Path, resource.GetID(), resource); err != nil {
+			if err := workspace.configDriver.SetInArray(r.Context(), module, cfg.Path, resource.GetID(), resource); err != nil {
 				utils.WriteJSONError(w, utils.NewStandardError(http.StatusInternalServerError, fmt.Sprintf("Error writing configuration: %s", err), "config_error"))
 				return
 			}
@@ -92,14 +106,14 @@ func (s *Server) configSetHandler(module string, cfg utils.ResourceConfiguration
 
 		// Update the modules
 		// TODO: Add support to revert back if the module could not be loaded for whatever reason
-		s.updateConfig()
+		workspace.updateConfig()
 
 		// Write the response
 		w.WriteHeader(http.StatusNoContent)
 	}
 }
 
-func (s *Server) configGetHandler(module string, cfg utils.ResourceConfiguration) http.HandlerFunc {
+func (workspace *Workspace) configGetHandler(module string, cfg utils.ResourceConfiguration) http.HandlerFunc {
 	type response struct {
 		Resources json.RawMessage `json:"resources"`
 	}
@@ -109,7 +123,7 @@ func (s *Server) configGetHandler(module string, cfg utils.ResourceConfiguration
 		path := cfg.Path
 
 		// Get the resources
-		resources, err := s.configDriver.Get(r.Context(), module, path)
+		resources, err := workspace.configDriver.Get(r.Context(), module, path)
 		if err != nil {
 			utils.WriteJSONError(w, utils.NewStandardError(http.StatusInternalServerError, "Error reading configuration", "config_error"))
 			return
@@ -130,7 +144,7 @@ func (s *Server) configGetHandler(module string, cfg utils.ResourceConfiguration
 	}
 }
 
-func (s *Server) configDeleteHandler(module string, cfg utils.ResourceConfiguration) http.HandlerFunc {
+func (workspace *Workspace) configDeleteHandler(module string, cfg utils.ResourceConfiguration) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Get the path and id
 		path := cfg.Path
@@ -138,12 +152,12 @@ func (s *Server) configDeleteHandler(module string, cfg utils.ResourceConfigurat
 		// Delete the resource
 		switch cfg.Type {
 		case utils.ConfigResourceType_Object:
-			if err := s.configDriver.DeleteFromObject(r.Context(), module, path, chi.URLParam(r, "id")); err != nil {
+			if err := workspace.configDriver.DeleteFromObject(r.Context(), module, path, chi.URLParam(r, "id")); err != nil {
 				utils.WriteJSONError(w, utils.NewStandardError(http.StatusInternalServerError, "Error deleting configuration", "config_error"))
 				return
 			}
 		case utils.ConfigResourceType_Array:
-			if err := s.configDriver.DeleteFromArray(r.Context(), module, path, chi.URLParam(r, "id")); err != nil {
+			if err := workspace.configDriver.DeleteFromArray(r.Context(), module, path, chi.URLParam(r, "id")); err != nil {
 				utils.WriteJSONError(w, utils.NewStandardError(http.StatusInternalServerError, "Error deleting configuration", "config_error"))
 				return
 			}
@@ -151,7 +165,7 @@ func (s *Server) configDeleteHandler(module string, cfg utils.ResourceConfigurat
 
 		// Update the modules
 		// TODO: Add support to revert back if the module could not be loaded for whatever reason
-		s.updateConfig()
+		workspace.updateConfig()
 
 		// Write the response
 		w.WriteHeader(http.StatusNoContent)

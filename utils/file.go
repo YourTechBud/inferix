@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/goccy/go-yaml"
 )
@@ -63,6 +64,22 @@ func WriteYAMLFile(path string, v any) error {
 	_, err = file.Write(yamlContent)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// CreateDirIfNotExists creates a directory if it doesn't exist
+func CreateDirIfNotExists(path string) error {
+	// Extract the directory path
+	dirPath := filepath.Dir(path)
+
+	// Check if the directory exists
+	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
+		// Create the directory
+		if err := os.MkdirAll(dirPath, os.ModePerm); err != nil {
+			return err
+		}
 	}
 
 	return nil

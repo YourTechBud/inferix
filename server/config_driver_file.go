@@ -34,6 +34,10 @@ func NewFileConfigDriver(opts Options) (*FileConfigDriver, error) {
 	}, nil
 }
 
+func (f *FileConfigDriver) Close() error {
+	return nil
+}
+
 func (f *FileConfigDriver) ReadAll(_ context.Context) (json.RawMessage, error) {
 	data, _ := json.Marshal(f.config)
 	return data, nil

@@ -6,13 +6,15 @@ import (
 	"github.com/YourTechBud/inferix/modules/llm/backends"
 	"github.com/YourTechBud/inferix/modules/llm/config"
 	"github.com/YourTechBud/inferix/modules/llm/models"
+	"github.com/go-chi/chi/v5"
 )
 
 // LLM is a module to all kinds of interaction with Large Language Models
 type LLM struct {
 	// Internal stuff
-	Models   *models.Models
-	Backends *backends.Backends
+	models   *models.Models
+	backends *backends.Backends
+	routes   chi.Router
 }
 
 // New creates a new LLM struct
@@ -34,6 +36,19 @@ func New(cfg json.RawMessage) (*LLM, error) {
 
 	// Return the module
 	return &LLM{
-		Backends: backends,
+		models:   models,
+		backends: backends,
+		routes:   initializeRoutes(backends),
 	}, nil
+}
+
+// Close closes the module
+func (llm *LLM) Close() error {
+	// TODO: close all the backends
+
+	// Close the router
+	llm.routes = nil
+
+	// Return nil
+	return nil
 }
