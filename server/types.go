@@ -27,6 +27,7 @@ type (
 		Get(ctx context.Context, module, path string) (json.RawMessage, error)
 		DeleteFromArray(ctx context.Context, module, path, id string) error
 		DeleteFromObject(ctx context.Context, module, path, id string) error
+		CheckIfResourceExists(ctx context.Context, module, path, id string) (bool, error)
 		Close() error
 	}
 

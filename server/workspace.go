@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"log"
 	"path"
 	"sync"
 
@@ -28,13 +29,97 @@ func (s *Server) NewWorkspace(ctx context.Context, tenant, workspace string) err
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
+	// Check if the workspace already exists
+	doesWorkspaceExists, err := s.configDriver.CheckIfResourceExists(ctx, "workspaces", tenant, workspace)
+	if err != nil {
+		return err
+	}
+	if doesWorkspaceExists {
+		return fmt.Errorf("workspace already exists")
+	}
+
+	// Add the workspace to the config driver
+	if err := s.configDriver.SetInArray(ctx, "workspaces", tenant, workspace, map[string]string{
+		"tenant":    tenant,
+		"workspace": workspace,
+	}); err != nil {
+		return err
+	}
+
+	// Load the workspace into memory
+	if err := s.loadWorkspace(ctx, tenant, workspace); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// RemoveWorkspace removes a workspace
+func (s *Server) RemoveWorkspace(ctx context.Context, tenant, workspace string) error {
+	// Acquire the server lock
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	// Delete the workspace from the config driver
+	if err := s.configDriver.DeleteFromArray(ctx, "workspaces", tenant, workspace); err != nil {
+		return err
+	}
+
 	// Get the workspace key
 	workspaceKey := getWorkspaceKey(tenant, workspace)
 
-	// Check if the workspace already exists
-	if _, ok := s.workspaces[workspaceKey]; ok {
-		return fmt.Errorf("workspace already exists: %s", workspace)
+	// Check if the workspace exists
+	w, p := s.workspaces[workspaceKey]
+	if !p {
+		return nil
 	}
+
+	// Stop the workspace
+	// TODO: Deal with the error in a better way
+	_ = w.Stop()
+
+	// Remove the workspace
+	delete(s.workspaces, workspaceKey)
+
+	return nil
+}
+
+func (s *Server) LoadWorkspace(ctx context.Context, tenant, workspace string) error {
+	// Get the workspace key
+	workspaceKey := getWorkspaceKey(tenant, workspace)
+
+	// Check if the workspace exists in memory
+	s.lock.RLock()
+	if _, p := s.workspaces[workspaceKey]; p {
+		s.lock.RUnlock()
+		return nil
+	}
+	s.lock.RUnlock()
+
+	// Check if the workspace exists in the config driver
+	doesWorkspaceExists, err := s.configDriver.CheckIfResourceExists(ctx, "workspaces", tenant, workspace)
+	if err != nil {
+		return err
+	}
+	if !doesWorkspaceExists {
+		return fmt.Errorf("workspace does not exist")
+	}
+
+	// Acquire the server lock
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	// Load the workspace into memory
+	return s.loadWorkspace(ctx, tenant, workspace)
+}
+
+// loadWorkspace loads a workspace into memory. Always make sure that this function is called
+// after acquiring the server lock and after making sure that the workspace does exist.
+func (s *Server) loadWorkspace(ctx context.Context, tenant, workspace string) error {
+	log.Default().Printf("Loading workspace %s/%s", tenant, workspace)
+
+	// Get the workspace key
+	workspaceKey := getWorkspaceKey(tenant, workspace)
 
 	// Setup the path for the workspace
 	configPath := s.options.ConfigPath
@@ -54,7 +139,7 @@ func (s *Server) NewWorkspace(ctx context.Context, tenant, workspace string) err
 	}
 
 	// Create and return the workspace
-	s.workspaces[workspaceKey] = &Workspace{
+	w := &Workspace{
 		// Create the modules map
 		modules: make(map[string]Module),
 
@@ -66,34 +151,12 @@ func (s *Server) NewWorkspace(ctx context.Context, tenant, workspace string) err
 	}
 
 	// Start the workspace
-	if err := s.workspaces[workspaceKey].Start(ctx); err != nil {
+	if err := w.Start(ctx); err != nil {
 		return err
 	}
 
-	return nil
-}
-
-// RemoveWorkspace removes a workspace
-func (s *Server) RemoveWorkspace(tenant, workspace string) error {
-	// Acquire the server lock
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	// Get the workspace key
-	workspaceKey := getWorkspaceKey(tenant, workspace)
-
-	// Check if the workspace exists
-	w, p := s.workspaces[workspaceKey]
-	if !p {
-		return nil
-	}
-
-	// Stop the workspace
-	// TODO: Deal with the error in a better way
-	_ = w.Stop()
-
-	// Remove the workspace
-	delete(s.workspaces, workspaceKey)
+	// Add the workspace to the server
+	s.workspaces[workspaceKey] = w
 
 	return nil
 }

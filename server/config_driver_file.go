@@ -54,6 +54,36 @@ func (f *FileConfigDriver) Get(_ context.Context, module, path string) (json.Raw
 	return json.Marshal(value)
 }
 
+func (f *FileConfigDriver) CheckIfResourceExists(_ context.Context, module, path, id string) (bool, error) {
+	// Get the value from the map
+	value := utils.GetValueAtPath(f.config, fmt.Sprintf("%s/%s", module, path), nil)
+	if value == nil {
+		return false, nil
+	}
+
+	// Convert the value to a slice
+	slice, ok := value.([]interface{})
+	if ok {
+		// Find the element in the slice
+		for _, v := range slice {
+			if v.(map[string]any)["id"] == id {
+				return true, nil
+			}
+		}
+	}
+
+	// Convert the value to a map
+	obj, ok := value.(map[string]any)
+	if ok {
+		// Find the element in the map
+		if _, ok := obj[id]; ok {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
 func (f *FileConfigDriver) SetInArray(_ context.Context, module, path, id string, element interface{}) error {
 	// Convert the element to a map
 	jsonData, _ := json.Marshal(element)

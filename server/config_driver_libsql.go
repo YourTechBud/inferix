@@ -86,6 +86,15 @@ func (s *LibSQLConfigDriver) Get(ctx context.Context, module, path string) (json
 	return elems.getValueAtPath(module, path)
 }
 
+func (s *LibSQLConfigDriver) CheckIfResourceExists(ctx context.Context, module, path, id string) (bool, error) {
+	var count int
+	if err := s.db.GetContext(ctx, &count, "SELECT COUNT(*) FROM config WHERE module = ? AND path = ? AND element_id = ?", module, path, id); err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
+}
+
 func (s *LibSQLConfigDriver) SetInArray(ctx context.Context, module, path, id string, element interface{}) error {
 	return s.setElement(ctx, module, path, id, "ARRAY", element)
 }
