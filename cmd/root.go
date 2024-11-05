@@ -6,28 +6,22 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
 	"github.com/YourTechBud/inferix/server"
 )
 
 var (
-	// Used for flags
-	configDriver           string
-	configPath             string
-	defaultConfigPath      string
-	createDefaultWorkspace bool
-
 	rootCmd = &cobra.Command{
 		Use:   "inferix",
-		Short: "Inferix is a OpenAI compatible backend to build Generative AI applications.",
+		Short: "Inferix is an OpenAI compatible backend to build Generative AI applications.",
 		Run: func(cmd *cobra.Command, args []string) {
+			// Extract the configuration
+			serverOptions := server.Options{}
+			cobra.CheckErr(viper.Unmarshal(&serverOptions))
+
 			// Create the server
-			router, err := server.New(server.Options{
-				ConfigDriver:           server.ConfigDriverType(configDriver),
-				ConfigPath:             configPath,
-				DefaultConfigPath:      defaultConfigPath,
-				CreateDefaultWorkspace: createDefaultWorkspace,
-			})
+			router, err := server.New(serverOptions)
 			if err != nil {
 				panic(err)
 			}
@@ -49,8 +43,25 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.Flags().StringVar(&configDriver, "config-driver", "file", "The configuration driver to use.")
-	rootCmd.Flags().StringVar(&configPath, "config-path", "inferix.yaml", "Path to your configuration.")
-	rootCmd.Flags().StringVar(&defaultConfigPath, "default-config-path", "", "Path to your default configuration.")
-	rootCmd.Flags().BoolVar(&createDefaultWorkspace, "create-default-workspace", true, "Create a default workspace.")
+	cobra.OnInitialize(initConfig)
+
+	// Setup the flags
+	rootCmd.Flags().String("config-driver", "file", "The configuration driver to use.")
+	rootCmd.Flags().String("config-path", "inferix.yaml", "Path to your configuration.")
+	rootCmd.Flags().String("default-config-path", "", "Path to your default configuration.")
+	rootCmd.Flags().Bool("create-default-workspace", true, "Create a default workspace.")
+
+	// Bind the flags with viper
+	viper.BindPFlag("config-driver", rootCmd.Flags().Lookup("config-driver"))
+	viper.BindPFlag("config-path", rootCmd.Flags().Lookup("config-path"))
+	viper.BindPFlag("default-config-path", rootCmd.Flags().Lookup("default-config-path"))
+	viper.BindPFlag("create-default-workspace", rootCmd.Flags().Lookup("create-default-workspace"))
+}
+
+func initConfig() {
+	viper.AutomaticEnv()
+
+	if err := viper.ReadInConfig(); err == nil {
+		fmt.Println("Using config file:", viper.ConfigFileUsed())
+	}
 }

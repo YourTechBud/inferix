@@ -16,7 +16,7 @@ func (workspace *Workspace) intializeRouter() {
 	router := chi.NewRouter()
 
 	// Setup module specific routes
-	router.Mount("/llm", workspace.createModuleRouter("llm"))
+	router.Mount("/llm", workspace.createModuleRouter(workspace.modules["llm"].Routes()))
 	router.Mount("/config/llm", workspace.createConfigRoutes("llm", llmconfig.GetConfigurationResources()))
 
 	// Setup the global config route
@@ -25,21 +25,14 @@ func (workspace *Workspace) intializeRouter() {
 	workspace.router = router
 }
 
-func (workspace *Workspace) createModuleRouter(module string) http.Handler {
+func (workspace *Workspace) createModuleRouter(moduleRouter chi.Router) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// First acquire a read lock
 		workspace.lock.RLock()
 		defer workspace.lock.RUnlock()
 
-		// Get the module
-		module, ok := workspace.modules[module]
-		if !ok {
-			utils.WriteJSONError(w, utils.NewStandardError(http.StatusBadRequest, "Module not found", "invalid_module"))
-			return
-		}
-
 		// Let the module handle the request
-		module.Routes().ServeHTTP(w, r)
+		moduleRouter.ServeHTTP(w, r)
 	})
 }
 

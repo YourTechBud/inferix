@@ -10,10 +10,10 @@ import (
 type (
 	// The main configuration struct for the server
 	Options struct {
-		ConfigDriver           ConfigDriverType
-		ConfigPath             string
-		DefaultConfigPath      string
-		CreateDefaultWorkspace bool
+		ConfigDriver           ConfigDriverType `mapstructure:"config-driver"`
+		ConfigPath             string           `mapstructure:"config-path"`
+		DefaultConfigPath      string           `mapstructure:"default-config-path"`
+		CreateDefaultWorkspace bool             `mapstructure:"create-default-workspace"`
 	}
 
 	// ConfigDriverType is the type of configuration driver to use

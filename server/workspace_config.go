@@ -27,10 +27,18 @@ func (workspace *Workspace) configureModules(ctx context.Context) error {
 		return err
 	}
 
-	// Add the module
+	// Don't forget to lock the workspace
 	workspace.lock.Lock()
+	defer workspace.lock.Unlock()
+
+	// Close the old modules
+	for _, module := range workspace.modules {
+		// TODO: Deal with the error in a better way
+		_ = module.Close()
+	}
+
+	// Set the new modules
 	workspace.modules["llm"] = llm
-	workspace.lock.Unlock()
 
 	return nil
 }
