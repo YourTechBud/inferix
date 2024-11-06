@@ -7,13 +7,14 @@ import (
 	"path"
 	"sync"
 
+	"github.com/YourTechBud/inferix/utils"
 	"github.com/go-chi/chi/v5"
 )
 
 // Workspace is a map of modules
 type Workspace struct {
 	lock         sync.RWMutex
-	modules      map[string]Module
+	modules      map[string]utils.Module
 	configDriver ConfigDriver
 
 	// Channel to signal config update
@@ -141,7 +142,7 @@ func (s *Server) loadWorkspace(ctx context.Context, tenant, workspace string) er
 	// Create and return the workspace
 	w := &Workspace{
 		// Create the modules map
-		modules: make(map[string]Module),
+		modules: make(map[string]utils.Module),
 
 		// Set the config driver
 		configDriver: configDriver,

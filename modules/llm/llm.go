@@ -3,10 +3,12 @@ package llm
 import (
 	"encoding/json"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/YourTechBud/inferix/modules/llm/backends"
 	"github.com/YourTechBud/inferix/modules/llm/config"
 	"github.com/YourTechBud/inferix/modules/llm/models"
-	"github.com/go-chi/chi/v5"
+	"github.com/YourTechBud/inferix/utils"
 )
 
 // LLM is a module to all kinds of interaction with Large Language Models
@@ -18,7 +20,7 @@ type LLM struct {
 }
 
 // New creates a new LLM struct
-func New(cfg json.RawMessage) (*LLM, error) {
+func New(cfg json.RawMessage) (utils.Module, error) {
 	// Unmarshal the configuration
 	config := new(config.Config)
 	if err := json.Unmarshal(cfg, config); err != nil {

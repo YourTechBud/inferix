@@ -3,8 +3,9 @@ package server
 import (
 	"context"
 
-	"github.com/YourTechBud/inferix/modules/llm"
 	"github.com/valyala/fastjson"
+
+	"github.com/YourTechBud/inferix/utils"
 )
 
 func (workspace *Workspace) configureModules(ctx context.Context) error {
@@ -21,10 +22,15 @@ func (workspace *Workspace) configureModules(ctx context.Context) error {
 	}
 
 	// Create all the modules
-	llmConfig := v.Get("llm").MarshalTo(nil)
-	llm, err := llm.New(llmConfig)
-	if err != nil {
-		return err
+	modules := make(map[string]utils.Module, len(modulesMap))
+	for name, moduleInfo := range modulesMap {
+		moduleConfig := v.Get(name).MarshalTo(nil)
+		module, err := moduleInfo.New(moduleConfig)
+		if err != nil {
+			return err
+		}
+
+		modules[name] = module
 	}
 
 	// Don't forget to lock the workspace
@@ -38,7 +44,7 @@ func (workspace *Workspace) configureModules(ctx context.Context) error {
 	}
 
 	// Set the new modules
-	workspace.modules["llm"] = llm
+	workspace.modules = modules
 
 	return nil
 }

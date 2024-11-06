@@ -3,8 +3,6 @@ package server
 import (
 	"context"
 	"encoding/json"
-
-	"github.com/go-chi/chi/v5"
 )
 
 type (
@@ -28,12 +26,6 @@ type (
 		DeleteFromArray(ctx context.Context, module, path, id string) error
 		DeleteFromObject(ctx context.Context, module, path, id string) error
 		CheckIfResourceExists(ctx context.Context, module, path, id string) (bool, error)
-		Close() error
-	}
-
-	// Module describes the methods that a module must implement
-	Module interface {
-		Routes() chi.Router
 		Close() error
 	}
 

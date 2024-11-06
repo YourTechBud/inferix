@@ -4,8 +4,8 @@ import (
 	"github.com/YourTechBud/inferix/utils"
 )
 
-func GetConfigurationResources() []utils.ResourceConfiguration {
-	return []utils.ResourceConfiguration{
+func GetResourcesInfo() []utils.ResourceInfo {
+	return []utils.ResourceInfo{
 		{
 			Path: "backends",
 			Type: utils.ConfigResourceType_Array,
