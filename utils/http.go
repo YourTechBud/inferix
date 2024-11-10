@@ -185,3 +185,16 @@ func WriteJSON(w http.ResponseWriter, data any) {
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(data)
 }
+
+// ValidateAuthencation checks if the request is authenticated
+func ValidateAuthencation(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestContext := r.Context().Value(RequestContextKey).(*RequestContext)
+		if requestContext.Authenticated() {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		WriteJSONError(w, NewStandardError(http.StatusUnauthorized, "Only authorized users are allowed to make this request", "unauthorized"))
+	})
+}

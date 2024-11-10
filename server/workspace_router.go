@@ -15,10 +15,14 @@ import (
 )
 
 func (workspace *Workspace) intializeRouter() {
+	// Prepare all the routers
 	router := chi.NewRouter()
 
 	configRouter := chi.NewRouter()
 	apiRouter := chi.NewRouter()
+
+	// Add the authentication middleware for the config routes
+	configRouter.Use(utils.ValidateAuthencation)
 
 	// First setup all module middlewares
 	for _, module := range workspace.modules {

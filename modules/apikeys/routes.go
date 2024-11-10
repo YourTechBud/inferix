@@ -25,6 +25,7 @@ func initializeMiddleware(config *Config) utils.HTTPMiddleware {
 				// First check if the request has already been authenticated
 				if r.Context().Value(utils.RequestContextKey).(*utils.RequestContext).Authenticated() {
 					next.ServeHTTP(w, r)
+					return
 				}
 
 				// Read the apiKey header

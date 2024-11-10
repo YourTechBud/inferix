@@ -10,6 +10,38 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+func (s *Server) middlewareAuthentication(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// First get the request context
+		requestContext := r.Context().Value(utils.RequestContextKey).(*utils.RequestContext)
+
+		// Check if authentication is enabled or not
+		if !s.options.AuthOptions.Enabled {
+			// Simply mark the request as authenticated and move on.
+			requestContext.SetAuthenticated(true)
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Check if the Authorization header contains basic auth
+		username, password, ok := r.BasicAuth()
+		if !ok {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Check if the username and password are correct
+		if username == s.options.AuthOptions.User && password == s.options.AuthOptions.Pass {
+			requestContext.SetAuthenticated(true)
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Return a 401
+		utils.WriteJSONError(w, utils.NewStandardError(http.StatusUnauthorized, "Invalid credentials", "invalid_credentials"))
+	})
+}
+
 func (s *Server) middlewareServerContext(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Read the `X-Inferix-Tenant` header
@@ -50,7 +82,7 @@ func (s *Server) router() http.Handler {
 	router := chi.NewRouter()
 
 	// Setup the server context middleware
-	router.Use(s.middlewareServerContext)
+	router.Use(s.middlewareServerContext, s.middlewareAuthentication)
 
 	// Setup the workspace management routes
 	router.Post("/inferix/v1/workspace", s.handleCreateWorkspace())
