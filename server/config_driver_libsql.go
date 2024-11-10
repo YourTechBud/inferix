@@ -65,8 +65,10 @@ func (s *LibSQLConfigDriver) ReadAll(ctx context.Context) (json.RawMessage, erro
 	cfg := elems.convertToMap()
 
 	// Add all the modules if they don't exist
-	if _, p := cfg["llm"]; !p {
-		cfg["llm"] = map[string]any{}
+	for _, m := range modulesList {
+		if _, p := cfg[m.Name]; !p {
+			cfg[m.Name] = map[string]any{}
+		}
 	}
 
 	// Merge with the default configuration

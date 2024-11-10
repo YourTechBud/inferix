@@ -28,19 +28,9 @@ type (
 		CheckIfResourceExists(ctx context.Context, module, path, id string) (bool, error)
 		Close() error
 	}
-
-	// ServerContext holds the context for the server
-	ServerContext struct {
-		tenant, workspace string
-	}
-
-	// ServerContextKeyType is the type for the server context key
-	ServerContextKeyType string
 )
 
 const (
-	ServerContextKey ServerContextKeyType = "server_context"
-
 	ConfigDriverType_File   ConfigDriverType = "file"
 	ConfigDriverType_LibSQL ConfigDriverType = "libsql"
 )

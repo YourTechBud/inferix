@@ -17,14 +17,43 @@ import (
 func (workspace *Workspace) intializeRouter() {
 	router := chi.NewRouter()
 
+	configRouter := chi.NewRouter()
+	apiRouter := chi.NewRouter()
+
+	// First setup all module middlewares
+	for _, module := range workspace.modules {
+		for _, middleware := range module.Middlewares() {
+			for _, routeType := range middleware.RouteTypes {
+				fmt.Println("Adding middleware for route type", routeType)
+				switch routeType {
+				case utils.HTTPRouteType_Config:
+					configRouter.Use(middleware.Handler)
+				case utils.HTTPRouteType_API:
+					apiRouter.Use(middleware.Handler)
+				}
+			}
+		}
+	}
+
 	// Setup module specific routes
-	for name, moduleInfo := range modulesMap {
-		router.Mount(fmt.Sprintf("/%s", name), workspace.createModuleRouter(workspace.modules[name].Routes()))
-		router.Mount(fmt.Sprintf("/config/%s", name), workspace.createConfigRoutes(name, moduleInfo.GetResourcesInfo()))
+	for i, moduleInfo := range modulesList {
+		name := moduleInfo.Name
+
+		// Setup the api routes if any
+		if routes := workspace.modules[i].Routes(); routes != nil {
+			apiRouter.Mount(fmt.Sprintf("/%s", name), workspace.createModuleRouter(workspace.modules[i].Routes()))
+		}
+
+		// Setup the config routes
+		configRouter.Mount(fmt.Sprintf("/%s", name), workspace.createConfigRoutes(name, moduleInfo.GetResourcesInfo()))
 	}
 
 	// Setup the global config route
-	router.Get("/config", workspace.getGlobalConfigHandler())
+	configRouter.Get("/", workspace.getGlobalConfigHandler())
+
+	// Mount the routers
+	router.Mount("/config", configRouter)
+	router.Mount("/", apiRouter)
 
 	workspace.router = router
 }
@@ -52,12 +81,12 @@ func (workspace *Workspace) getGlobalConfigHandler() http.HandlerFunc {
 		// Remove the protected fields for each module
 		var p fastjson.Parser
 		parsedConfig, _ := p.Parse(string(config))
-		for moduleName, moduleInfo := range modulesMap {
+		for _, moduleInfo := range modulesList {
 			// Get the resources declared by the module
 			resources := moduleInfo.GetResourcesInfo()
 
 			// Get the module configuration
-			moduleValue := parsedConfig.Get(moduleName)
+			moduleValue := parsedConfig.Get(moduleInfo.Name)
 			for _, resource := range resources {
 				// Get the resource specific configuration
 				resourceValue := moduleValue.Get(strings.Split(resource.Path, "/")...)
@@ -104,11 +133,15 @@ func (workspace *Workspace) configSetHandler(module string, resourceInfo utils.R
 		}
 
 		// Initialize the resource if it supports it
+		var returningValue any = nil
 		if provisioner, ok := resource.(utils.ResourceProvisioner); ok {
-			if err := provisioner.Provision(); err != nil {
+			val, err := provisioner.Provision(r.Context().Value(utils.RequestContextKey).(*utils.RequestContext))
+			if err != nil {
 				utils.WriteJSONError(w, utils.NewStandardError(http.StatusBadRequest, fmt.Sprintf("Error initializing resource: %s", err), "invalid_request"))
 				return
 			}
+
+			returningValue = val
 		}
 
 		// Validate the resource if it supports it
@@ -138,7 +171,11 @@ func (workspace *Workspace) configSetHandler(module string, resourceInfo utils.R
 		workspace.updateConfig()
 
 		// Write the response
-		w.WriteHeader(http.StatusNoContent)
+		if returningValue != nil {
+			utils.WriteJSON(w, returningValue)
+		} else {
+			w.WriteHeader(http.StatusNoContent)
+		}
 	}
 }
 

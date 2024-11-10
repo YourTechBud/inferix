@@ -24,12 +24,8 @@ func (s *Server) middlewareServerContext(next http.Handler) http.Handler {
 			workspace = "default"
 		}
 
-		serverContext := ServerContext{
-			tenant:    tenant,
-			workspace: workspace,
-		}
-
-		r = r.WithContext(context.WithValue(r.Context(), ServerContextKey, serverContext))
+		serverContext := utils.NewRequestContext(tenant, workspace)
+		r = r.WithContext(context.WithValue(r.Context(), utils.RequestContextKey, serverContext))
 
 		next.ServeHTTP(w, r)
 	})
@@ -38,10 +34,10 @@ func (s *Server) middlewareServerContext(next http.Handler) http.Handler {
 func (s *Server) middlewareLoadWorkspace(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Get the server context
-		serverContext := r.Context().Value(ServerContextKey).(ServerContext)
+		serverContext := r.Context().Value(utils.RequestContextKey).(*utils.RequestContext)
 
 		// Try loading the workspace into memory
-		if err := s.LoadWorkspace(r.Context(), serverContext.tenant, serverContext.workspace); err != nil {
+		if err := s.LoadWorkspace(r.Context(), serverContext.Tenant(), serverContext.Workspace()); err != nil {
 			utils.WriteJSONError(w, utils.NewStandardError(http.StatusBadRequest, fmt.Sprintf("Error loading workspace - %s", err), "workspace_error"))
 			return
 		}
@@ -79,7 +75,7 @@ func (s *Server) handleCreateWorkspace() http.HandlerFunc {
 		}
 
 		// Get the server context
-		serverContext := r.Context().Value(ServerContextKey).(ServerContext)
+		serverContext := r.Context().Value(utils.RequestContextKey).(*utils.RequestContext)
 
 		// Parse the request
 		var req createWorkspaceRequest
@@ -89,7 +85,7 @@ func (s *Server) handleCreateWorkspace() http.HandlerFunc {
 		}
 
 		// Create the workspace
-		if err := s.NewWorkspace(r.Context(), serverContext.tenant, req.Workspace); err != nil {
+		if err := s.NewWorkspace(r.Context(), serverContext.Tenant(), req.Workspace); err != nil {
 			utils.WriteJSONError(w, utils.NewStandardError(http.StatusInternalServerError, fmt.Sprintf("Error creating workspace - %s", err), "workspace_error"))
 			return
 		}
@@ -107,13 +103,13 @@ func (s *Server) handleDeleteWorkspace() http.HandlerFunc {
 		}
 
 		// Get the server context
-		serverContext := r.Context().Value(ServerContextKey).(ServerContext)
+		serverContext := r.Context().Value(utils.RequestContextKey).(*utils.RequestContext)
 
 		// Get the workspace
 		workspace := chi.URLParam(r, "workspace")
 
 		// Remove the workspace
-		if err := s.RemoveWorkspace(r.Context(), serverContext.tenant, workspace); err != nil {
+		if err := s.RemoveWorkspace(r.Context(), serverContext.Tenant(), workspace); err != nil {
 			utils.WriteJSONError(w, utils.NewStandardError(http.StatusInternalServerError, "Error removing workspace", "workspace_error"))
 			return
 		}
@@ -128,10 +124,10 @@ func (s *Server) handleWorkspaceRoutes() http.Handler {
 		defer s.lock.RUnlock()
 
 		// First get the server context
-		serverContext := r.Context().Value(ServerContextKey).(ServerContext)
+		serverContext := r.Context().Value(utils.RequestContextKey).(*utils.RequestContext)
 
 		// Get the workspace
-		workspaceKey := getWorkspaceKey(serverContext.tenant, serverContext.workspace)
+		workspaceKey := getWorkspaceKey(serverContext.Tenant(), serverContext.Workspace())
 
 		// Get the workspace
 		workspace := s.workspaces[workspaceKey]

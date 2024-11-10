@@ -5,6 +5,7 @@ import (
 
 	"github.com/valyala/fastjson"
 
+	"github.com/YourTechBud/inferix/modules/apikeys"
 	"github.com/YourTechBud/inferix/modules/llm"
 	llmconfig "github.com/YourTechBud/inferix/modules/llm/config"
 	"github.com/YourTechBud/inferix/utils"
@@ -28,9 +29,15 @@ func removeFields(value *fastjson.Value, fields []string) {
 	}
 }
 
-var modulesMap = map[string]utils.ModuleInfo{
-	"llm": {
+var modulesList = []utils.ModuleInfo{
+	{
+		Name:             "apikeys",
+		New:              apikeys.New,
+		GetResourcesInfo: apikeys.GetResourcesInfo,
+	},
+	{
+		Name:             "llm",
 		New:              llm.New,
-		GetResourcesInfo: llmconfig.GetResourcesInfo,
+		GetResourcesInfo: llmconfig.GetResourcesInfo, // TODO: This should be in the llm module.
 	},
 }

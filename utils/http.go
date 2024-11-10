@@ -11,6 +11,19 @@ import (
 	"strings"
 )
 
+// HTTPMiddleware is a type for HTTP middleware
+type HTTPMiddleware struct {
+	RouteTypes []HTTPRouteType
+	Handler    func(http.Handler) http.Handler
+}
+
+type HTTPRouteType string
+
+const (
+	HTTPRouteType_Config HTTPRouteType = "config"
+	HTTPRouteType_API    HTTPRouteType = "api"
+)
+
 // HTTPResponse is a generic response for HTTP requests
 type HTTPResponse[T, E any] struct {
 	Status int

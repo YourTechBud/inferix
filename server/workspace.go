@@ -14,7 +14,7 @@ import (
 // Workspace is a map of modules
 type Workspace struct {
 	lock         sync.RWMutex
-	modules      map[string]utils.Module
+	modules      []utils.Module
 	configDriver ConfigDriver
 
 	// Channel to signal config update
@@ -142,7 +142,7 @@ func (s *Server) loadWorkspace(ctx context.Context, tenant, workspace string) er
 	// Create and return the workspace
 	w := &Workspace{
 		// Create the modules map
-		modules: make(map[string]utils.Module),
+		modules: make([]utils.Module, 0),
 
 		// Set the config driver
 		configDriver: configDriver,
@@ -171,9 +171,6 @@ func (workspace *Workspace) Start(ctx context.Context) error {
 
 	// Start the module config updater
 	go workspace.configUpdater()
-
-	// Start the router
-	workspace.intializeRouter()
 
 	return nil
 }

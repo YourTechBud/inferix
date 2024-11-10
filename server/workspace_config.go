@@ -3,9 +3,8 @@ package server
 import (
 	"context"
 
-	"github.com/valyala/fastjson"
-
 	"github.com/YourTechBud/inferix/utils"
+	"github.com/valyala/fastjson"
 )
 
 func (workspace *Workspace) configureModules(ctx context.Context) error {
@@ -22,15 +21,16 @@ func (workspace *Workspace) configureModules(ctx context.Context) error {
 	}
 
 	// Create all the modules
-	modules := make(map[string]utils.Module, len(modulesMap))
-	for name, moduleInfo := range modulesMap {
+	modules := make([]utils.Module, len(modulesList))
+	for i, moduleInfo := range modulesList {
+		name := moduleInfo.Name
 		moduleConfig := v.Get(name).MarshalTo(nil)
 		module, err := moduleInfo.New(moduleConfig)
 		if err != nil {
 			return err
 		}
 
-		modules[name] = module
+		modules[i] = module
 	}
 
 	// Don't forget to lock the workspace
@@ -45,6 +45,9 @@ func (workspace *Workspace) configureModules(ctx context.Context) error {
 
 	// Set the new modules
 	workspace.modules = modules
+
+	// Start the router
+	workspace.intializeRouter()
 
 	return nil
 }
