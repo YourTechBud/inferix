@@ -45,6 +45,9 @@ type (
 	ResourceProvisioner interface {
 		Provision(ctx *RequestContext) (any, error)
 	}
+	ResourceUpdater interface {
+		Update(ctx *RequestContext, oldValue any) (any, error)
+	}
 	ResourceValidator interface {
 		Validate() error
 	}

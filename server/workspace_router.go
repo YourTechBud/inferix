@@ -136,16 +136,48 @@ func (workspace *Workspace) configSetHandler(module string, resourceInfo utils.R
 			return
 		}
 
-		// Initialize the resource if it supports it
+		// The value to return to the user.
 		var returningValue any = nil
-		if provisioner, ok := resource.(utils.ResourceProvisioner); ok {
-			val, err := provisioner.Provision(r.Context().Value(utils.RequestContextKey).(*utils.RequestContext))
-			if err != nil {
-				utils.WriteJSONError(w, utils.NewStandardError(http.StatusBadRequest, fmt.Sprintf("Error initializing resource: %s", err), "invalid_request"))
-				return
-			}
 
-			returningValue = val
+		// Check if the resource already doesResourceExists
+		doesResourceExists, err := workspace.configDriver.CheckIfResourceExists(r.Context(), module, resourceInfo.Path, resource.GetID())
+		if err != nil {
+			utils.WriteJSONError(w, utils.NewStandardError(http.StatusInternalServerError, fmt.Sprintf("Error checking if resource exists: %s", err), "config_error"))
+			return
+		}
+		if !doesResourceExists {
+			// Initialize the resource if it supports it
+			if provisioner, ok := resource.(utils.ResourceProvisioner); ok {
+				val, err := provisioner.Provision(r.Context().Value(utils.RequestContextKey).(*utils.RequestContext))
+				if err != nil {
+					utils.WriteJSONError(w, utils.NewStandardError(http.StatusBadRequest, fmt.Sprintf("Error initializing resource: %s", err), "invalid_request"))
+					return
+				}
+
+				returningValue = val
+			}
+		} else {
+			// Update the resource if it supports it
+			if updater, ok := resource.(utils.ResourceUpdater); ok {
+
+				// Load the old value
+				oldValue, err := workspace.configDriver.GetResource(r.Context(), module, resourceInfo.Path, resource.GetID())
+				if err != nil {
+					utils.WriteJSONError(w, utils.NewStandardError(http.StatusInternalServerError, fmt.Sprintf("Error reading configuration: %s", err), "config_error"))
+					return
+				}
+
+				// Invoke the lifecycle hook
+				oldResource := resourceInfo.New()
+				_ = json.Unmarshal(oldValue, oldResource)
+				val, err := updater.Update(r.Context().Value(utils.RequestContextKey).(*utils.RequestContext), oldResource)
+				if err != nil {
+					utils.WriteJSONError(w, utils.NewStandardError(http.StatusBadRequest, fmt.Sprintf("Error updating resource: %s", err), "invalid_request"))
+					return
+				}
+
+				returningValue = val
+			}
 		}
 
 		// Validate the resource if it supports it
@@ -193,7 +225,7 @@ func (workspace *Workspace) configGetHandler(module string, resourceInfo utils.R
 		path := resourceInfo.Path
 
 		// Get the resources
-		resources, err := workspace.configDriver.Get(r.Context(), module, path)
+		resources, err := workspace.configDriver.GetAllResources(r.Context(), module, path)
 		if err != nil {
 			utils.WriteJSONError(w, utils.NewStandardError(http.StatusInternalServerError, "Error reading configuration", "config_error"))
 			return

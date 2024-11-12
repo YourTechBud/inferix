@@ -28,9 +28,6 @@ func (a *APIKey) GetID() string {
 
 // Provision generates a new apiKey along with the hash
 func (a *APIKey) Provision(ctx *utils.RequestContext) (any, error) {
-	// Generate a new id for the key
-	a.ID = utils.GenerateID(a.Name)
-
 	// Generate a new api key
 	apiKey, hash, err := generateAPIKey(ctx.Workspace(), a.ID)
 	if err != nil {
@@ -40,9 +37,22 @@ func (a *APIKey) Provision(ctx *utils.RequestContext) (any, error) {
 	// Don't forget to store the hash in the config
 	a.Hash = hash
 	a.Salt = ""
-	a.LastDigits = apiKey[len(apiKey)-4:]
+	a.LastDigits = apiKey[len(apiKey)-6:]
 
 	return map[string]string{"id": a.ID, "key": apiKey}, nil
 }
 
+// Update simply updates the title of the previous api key. No other keys is allowed to be updated.
+func (a *APIKey) Update(ctx *utils.RequestContext, oldValue any) (any, error) {
+	// Set all the values from the old key
+	oldResource := oldValue.(*APIKey)
+
+	a.Hash = oldResource.Hash
+	a.Salt = oldResource.Salt
+	a.LastDigits = oldResource.LastDigits
+
+	return map[string]string{"id": a.ID}, nil
+}
+
 var _ utils.ResourceProvisioner = (*APIKey)(nil)
+var _ utils.ResourceUpdater = (*APIKey)(nil)

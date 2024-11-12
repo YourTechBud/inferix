@@ -79,13 +79,22 @@ func (s *LibSQLConfigDriver) ReadAll(ctx context.Context) (json.RawMessage, erro
 	return json.Marshal(cfg)
 }
 
-func (s *LibSQLConfigDriver) Get(ctx context.Context, module, path string) (json.RawMessage, error) {
+func (s *LibSQLConfigDriver) GetAllResources(ctx context.Context, module, path string) (json.RawMessage, error) {
 	elems, err := s.getElementsByModuleAndPath(ctx, module, path)
 	if err != nil {
 		return nil, err
 	}
 
 	return elems.getValueAtPath(module, path)
+}
+
+func (s *LibSQLConfigDriver) GetResource(ctx context.Context, module, path, id string) (json.RawMessage, error) {
+	elem, err := s.getElementsByID(ctx, module, path, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return json.RawMessage(elem.Config), nil
 }
 
 func (s *LibSQLConfigDriver) CheckIfResourceExists(ctx context.Context, module, path, id string) (bool, error) {
@@ -120,6 +129,19 @@ func (s *LibSQLConfigDriver) getElementsByModuleAndPath(ctx context.Context, mod
 	}
 
 	return elems, nil
+}
+
+func (s *LibSQLConfigDriver) getElementsByID(ctx context.Context, module, path, id string) (sqliteConfigElement, error) {
+	elems := sqliteConfigElements{}
+	if err := s.db.SelectContext(ctx, &elems, "SELECT * FROM config WHERE module = ? AND path = ? AND element_id = ? ORDER BY element_id", module, path, id); err != nil {
+		return sqliteConfigElement{}, err
+	}
+
+	if len(elems) == 0 {
+		return sqliteConfigElement{}, fmt.Errorf("resource %s not found", id)
+	}
+
+	return elems[0], nil
 }
 
 func (s *LibSQLConfigDriver) setElement(ctx context.Context, module, path, id, elementType string, element interface{}) error {

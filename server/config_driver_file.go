@@ -43,7 +43,7 @@ func (f *FileConfigDriver) ReadAll(_ context.Context) (json.RawMessage, error) {
 	return data, nil
 }
 
-func (f *FileConfigDriver) Get(_ context.Context, module, path string) (json.RawMessage, error) {
+func (f *FileConfigDriver) GetAllResources(_ context.Context, module, path string) (json.RawMessage, error) {
 	// Get the value from the map
 	value := utils.GetValueAtPath(f.config, fmt.Sprintf("%s/%s", module, path), nil)
 
@@ -52,6 +52,35 @@ func (f *FileConfigDriver) Get(_ context.Context, module, path string) (json.Raw
 	}
 
 	return json.Marshal(value)
+}
+
+func (f *FileConfigDriver) GetResource(_ context.Context, module, path, id string) (json.RawMessage, error) {
+	// Get the value from the map
+	value := utils.GetValueAtPath(f.config, fmt.Sprintf("%s/%s", module, path), nil)
+
+	// Convert the value to a slice
+	slice, ok := value.([]interface{})
+	if ok {
+		// Find the element in the slice
+		for _, v := range slice {
+			if v.(map[string]any)["id"] == id {
+				data, _ := json.Marshal(v)
+				return data, nil
+			}
+		}
+	}
+
+	// Convert the value to a map
+	obj, ok := value.(map[string]any)
+	if ok {
+		// Find the element in the map
+		if v, ok := obj[id]; ok {
+			data, _ := json.Marshal(v)
+			return data, nil
+		}
+	}
+
+	return nil, fmt.Errorf("resource %s not found", id)
 }
 
 func (f *FileConfigDriver) CheckIfResourceExists(_ context.Context, module, path, id string) (bool, error) {

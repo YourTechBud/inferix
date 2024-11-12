@@ -30,7 +30,8 @@ type (
 		SetInArray(ctx context.Context, module, path, id string, element interface{}) error
 		SetInObject(ctx context.Context, module, path, id string, element interface{}) error
 		ReadAll(ctx context.Context) (json.RawMessage, error)
-		Get(ctx context.Context, module, path string) (json.RawMessage, error)
+		GetAllResources(ctx context.Context, module, path string) (json.RawMessage, error)
+		GetResource(ctx context.Context, module, path, id string) (json.RawMessage, error)
 		DeleteFromArray(ctx context.Context, module, path, id string) error
 		DeleteFromObject(ctx context.Context, module, path, id string) error
 		CheckIfResourceExists(ctx context.Context, module, path, id string) (bool, error)
