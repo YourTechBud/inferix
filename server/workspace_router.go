@@ -28,7 +28,6 @@ func (workspace *Workspace) intializeRouter() {
 	for _, module := range workspace.modules {
 		for _, middleware := range module.Middlewares() {
 			for _, routeType := range middleware.RouteTypes {
-				fmt.Println("Adding middleware for route type", routeType)
 				switch routeType {
 				case utils.HTTPRouteType_Config:
 					configRouter.Use(middleware.Handler)

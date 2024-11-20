@@ -29,7 +29,7 @@ func (a *APIKey) GetID() string {
 // Provision generates a new apiKey along with the hash
 func (a *APIKey) Provision(ctx *utils.RequestContext) (any, error) {
 	// Generate a new api key
-	apiKey, hash, err := generateAPIKey(ctx.Workspace(), a.ID)
+	apiKey, hash, err := generateAPIKey(ctx.Tenant(), ctx.Workspace(), a.ID)
 	if err != nil {
 		return nil, err
 	}

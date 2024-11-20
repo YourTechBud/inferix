@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
+	"github.com/YourTechBud/inferix/modules/apikeys"
 	"github.com/YourTechBud/inferix/utils"
+
 	"github.com/go-chi/chi/v5"
 )
 
@@ -44,14 +47,38 @@ func (s *Server) middlewareAuthentication(next http.Handler) http.Handler {
 
 func (s *Server) middlewareServerContext(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Read the `X-Inferix-Tenant` header
-		tenant := r.Header.Get("X-Inferix-Tenant")
+		// Create the tenant and workspace variables
+		var tenant, workspace string
+
+		// First check if we have received an apikey. API keys take top priority
+		apiKey := r.Header.Get("Authorization")
+		apiKey = strings.TrimPrefix(apiKey, "Bearer ")
+		if apiKey != "" && strings.HasPrefix(apiKey, "ik:") {
+			var err error
+			tenant, workspace, _, _, err = apikeys.GetKeySegments(apiKey)
+			if err != nil {
+				utils.WriteJSONError(w, err)
+				return
+			}
+		}
+
+		// Check the headers only if we didn't get the tenant and workspace from the apikey
+		if tenant == "" || workspace == "" {
+			// Read the `X-Inferix-Tenant` header
+			if t := r.Header.Get("X-Inferix-Tenant"); t != "" {
+				tenant = t
+			}
+
+			// Read the `X-Inferix-Workspace` header
+			if w := r.Header.Get("X-Inferix-Workspace"); w != "" {
+				workspace = w
+			}
+		}
+
+		// If the tenant or workspace is empty, set them to default
 		if tenant == "" {
 			tenant = "default"
 		}
-
-		// Read the `X-Inferix-Workspace` header
-		workspace := r.Header.Get("X-Inferix-Workspace")
 		if workspace == "" {
 			workspace = "default"
 		}
