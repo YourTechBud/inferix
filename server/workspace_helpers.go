@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"path"
 
 	"github.com/valyala/fastjson"
 
@@ -16,6 +17,10 @@ func getWorkspaceKey(tenant, workspace string) string {
 }
 
 func removeFields(value *fastjson.Value, fields []string) {
+	if value == nil {
+		return
+	}
+
 	switch value.Type() {
 	case fastjson.TypeObject:
 		for _, field := range fields {
@@ -27,6 +32,14 @@ func removeFields(value *fastjson.Value, fields []string) {
 			removeFields(v, fields)
 		}
 	}
+}
+
+func getConfigDir(configPath, tenant, workspace string) string {
+	return path.Join(configPath, tenant, workspace)
+}
+
+func getConfigPath(configPath, tenant, workspace string) string {
+	return path.Join(getConfigDir(configPath, tenant, workspace), "config.db")
 }
 
 var modulesList = []utils.ModuleInfo{

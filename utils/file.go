@@ -84,3 +84,28 @@ func CreateDirIfNotExists(path string) error {
 
 	return nil
 }
+
+// DeleteDirectory deletes a directory along with all its contents
+func DeleteDirectory(path string) error {
+	// Check if the directory exists
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return nil
+	}
+
+	// Remove the directory
+	if err := os.RemoveAll(path); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// CheckIfFileExists checks if a file exists
+func CheckIfFileExists(path string) bool {
+	// Check if the file exists
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return false
+	}
+
+	return true
+}

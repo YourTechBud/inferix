@@ -31,20 +31,10 @@ func (s *Server) NewWorkspace(ctx context.Context, tenant, workspace string) err
 	defer s.lock.Unlock()
 
 	// Check if the workspace already exists
-	doesWorkspaceExists, err := s.configDriver.CheckIfResourceExists(ctx, "workspaces", tenant, workspace)
-	if err != nil {
-		return err
-	}
-	if doesWorkspaceExists {
+	// TODO: How do we handle this for configdrivers which are not file based?
+	configPath := getConfigPath(s.options.ConfigPath, tenant, workspace)
+	if utils.CheckIfFileExists(configPath) {
 		return fmt.Errorf("workspace already exists")
-	}
-
-	// Add the workspace to the config driver
-	if err := s.configDriver.SetInArray(ctx, "workspaces", tenant, workspace, map[string]string{
-		"tenant":    tenant,
-		"workspace": workspace,
-	}); err != nil {
-		return err
 	}
 
 	// Load the workspace into memory
@@ -60,11 +50,6 @@ func (s *Server) RemoveWorkspace(ctx context.Context, tenant, workspace string) 
 	// Acquire the server lock
 	s.lock.Lock()
 	defer s.lock.Unlock()
-
-	// Delete the workspace from the config driver
-	if err := s.configDriver.DeleteFromArray(ctx, "workspaces", tenant, workspace); err != nil {
-		return err
-	}
 
 	// Get the workspace key
 	workspaceKey := getWorkspaceKey(tenant, workspace)
@@ -82,6 +67,11 @@ func (s *Server) RemoveWorkspace(ctx context.Context, tenant, workspace string) 
 	// Remove the workspace
 	delete(s.workspaces, workspaceKey)
 
+	// Delete all the workspace files
+	// TODO: How do we handle this for configdrivers which are not file based?
+	configPath := getConfigDir(s.options.ConfigPath, tenant, workspace)
+	_ = utils.DeleteDirectory(configPath)
+
 	return nil
 }
 
@@ -98,11 +88,9 @@ func (s *Server) LoadWorkspace(ctx context.Context, tenant, workspace string) er
 	s.lock.RUnlock()
 
 	// Check if the workspace exists in the config driver
-	doesWorkspaceExists, err := s.configDriver.CheckIfResourceExists(ctx, "workspaces", tenant, workspace)
-	if err != nil {
-		return err
-	}
-	if !doesWorkspaceExists {
+	// TODO: How do we handle this for configdrivers which are not file based?
+	configPath := getConfigPath(s.options.ConfigPath, tenant, workspace)
+	if !utils.CheckIfFileExists(configPath) {
 		return fmt.Errorf("workspace does not exist")
 	}
 
