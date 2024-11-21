@@ -20,7 +20,7 @@ type LLM struct {
 }
 
 // New creates a new LLM struct
-func New(_ *utils.WorkspaceContext, cfg json.RawMessage) (utils.Module, error) {
+func New(workspaceCtx *utils.WorkspaceContext, cfg json.RawMessage) (utils.Module, error) {
 	// Unmarshal the configuration
 	config := new(config.Config)
 	if err := json.Unmarshal(cfg, config); err != nil {
@@ -28,7 +28,7 @@ func New(_ *utils.WorkspaceContext, cfg json.RawMessage) (utils.Module, error) {
 	}
 
 	// Create a new models struct
-	models := models.New(config.Models)
+	models := models.New(config.Models, workspaceCtx.Storage)
 
 	// Create a new backends struct
 	backends, err := backends.New(config.Backends, models)
@@ -40,7 +40,7 @@ func New(_ *utils.WorkspaceContext, cfg json.RawMessage) (utils.Module, error) {
 	return &LLM{
 		models:   models,
 		backends: backends,
-		routes:   initializeRoutes(backends),
+		routes:   initializeRoutes(models, backends),
 	}, nil
 }
 

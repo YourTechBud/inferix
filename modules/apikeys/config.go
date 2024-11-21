@@ -44,7 +44,7 @@ func (a *APIKey) Provision(ctx *utils.RequestContext) (returningValue, metadata 
 	a.Salt = ""
 	a.LastDigits = apiKey[len(apiKey)-6:]
 
-	return map[string]string{"id": a.ID, "key": apiKey}, Metadata{LastUsedAt: utils.CurrentTime()}, nil
+	return map[string]string{"id": a.ID, "key": apiKey}, Metadata{utils.CurrentTime()}, nil
 }
 
 // Update simply updates the title of the previous api key. No other keys is allowed to be updated.

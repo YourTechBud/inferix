@@ -202,3 +202,11 @@ type ChatCompletionMessageToolCallChunk struct {
 	TypeField *string                     `json:"type,omitempty"`
 	Function  *ChatCompletionFunctionCall `json:"function,omitempty"`
 }
+
+// ModelObject describes an OpenAI model offering that can be used with the API.
+type ModelObject struct {
+	ID      string `json:"id"`
+	Created int64  `json:"created"`
+	Object  string `json:"object"`
+	OwnedBy string `json:"owned_by"`
+}

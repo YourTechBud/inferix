@@ -164,9 +164,13 @@ func (workspace *Workspace) configSetHandler(module string, resourceInfo utils.R
 			if updater, ok := resource.(utils.ResourceUpdater); ok {
 
 				// Load the old value
-				oldValue, err := workspace.configDriver.GetResource(r.Context(), module, resourceInfo.Path, resource.GetID())
+				oldValue, found, err := workspace.configDriver.GetResource(r.Context(), module, resourceInfo.Path, resource.GetID())
 				if err != nil {
 					utils.WriteJSONError(w, utils.NewStandardError(http.StatusInternalServerError, fmt.Sprintf("Error reading configuration: %s", err), "config_error"))
+					return
+				}
+				if !found {
+					utils.WriteJSONError(w, utils.NewStandardError(http.StatusNotFound, "Error reading configuration: Resource not found", "config_error"))
 					return
 				}
 

@@ -43,7 +43,7 @@ func (module *Module) initializeMiddleware() utils.HTTPMiddleware {
 
 				// Update the last used time
 				go func(id string) {
-					module.workspaceStorage.UpdateConfigMetadata(r.Context(), "keys", id, Metadata{LastUsedAt: utils.CurrentTime()})
+					module.workspaceStorage.UpdateConfigMetadata(r.Context(), "keys", id, Metadata{utils.CurrentTime()})
 				}(keyID)
 
 				next.ServeHTTP(w, r)

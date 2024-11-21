@@ -92,7 +92,7 @@ type (
 		SetResourceMetadata(ctx context.Context, module, path, id string, metadata any) error
 		ReadAll(ctx context.Context) (json.RawMessage, error)
 		GetAllResources(ctx context.Context, module, path string) ([]*ResourceObject, error)
-		GetResource(ctx context.Context, module, path, id string) (*ResourceObject, error)
+		GetResource(ctx context.Context, module, path, id string) (*ResourceObject, bool, error)
 		DeleteResource(ctx context.Context, module, path, id string) error
 		CheckIfResourceExists(ctx context.Context, module, path, id string) (bool, error)
 		Close() error
@@ -119,6 +119,14 @@ func NewWorkspaceContext(tenant, workspace, module string, configdriver ConfigDr
 
 func (s *WorkspaceStorage) UpdateConfigMetadata(ctx context.Context, path, elementID string, data any) error {
 	return s.configDriver.SetResourceMetadata(ctx, s.module, path, elementID, data)
+}
+
+func (s *WorkspaceStorage) GetResources(ctx context.Context, path string) ([]*ResourceObject, error) {
+	return s.configDriver.GetAllResources(ctx, s.module, path)
+}
+
+func (s *WorkspaceStorage) GetResource(ctx context.Context, path, elementID string) (*ResourceObject, bool, error) {
+	return s.configDriver.GetResource(ctx, s.module, path, elementID)
 }
 
 // NewRequestContext creates a new context for a module

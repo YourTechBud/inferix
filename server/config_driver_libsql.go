@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/YourTechBud/inferix/utils"
@@ -79,10 +78,13 @@ func (s *LibSQLConfigDriver) GetAllResources(ctx context.Context, module, path s
 	return resources, nil
 }
 
-func (s *LibSQLConfigDriver) GetResource(ctx context.Context, module, path, id string) (*utils.ResourceObject, error) {
-	elem, err := s.getElementsByID(ctx, module, path, id)
+func (s *LibSQLConfigDriver) GetResource(ctx context.Context, module, path, id string) (*utils.ResourceObject, bool, error) {
+	elem, found, err := s.getElementsByID(ctx, module, path, id)
 	if err != nil {
-		return nil, err
+		return nil, false, err
+	}
+	if !found {
+		return nil, false, nil
 	}
 
 	return &utils.ResourceObject{
@@ -90,7 +92,7 @@ func (s *LibSQLConfigDriver) GetResource(ctx context.Context, module, path, id s
 		Metadata:  json.RawMessage(elem.Metadata),
 		CreatedAt: elem.CreatedAt,
 		UpdatedAt: elem.UpdatedAt,
-	}, nil
+	}, true, nil
 }
 
 func (s *LibSQLConfigDriver) CheckIfResourceExists(ctx context.Context, module, path, id string) (bool, error) {
@@ -130,17 +132,17 @@ func (s *LibSQLConfigDriver) getElementsByModuleAndPath(ctx context.Context, mod
 	return elems, nil
 }
 
-func (s *LibSQLConfigDriver) getElementsByID(ctx context.Context, module, path, id string) (sqliteConfigElement, error) {
+func (s *LibSQLConfigDriver) getElementsByID(ctx context.Context, module, path, id string) (sqliteConfigElement, bool, error) {
 	elems := sqliteConfigElements{}
 	if err := s.db.SelectContext(ctx, &elems, "SELECT * FROM config WHERE module = ? AND path = ? AND element_id = ? ORDER BY element_id", module, path, id); err != nil {
-		return sqliteConfigElement{}, err
+		return sqliteConfigElement{}, false, err
 	}
 
 	if len(elems) == 0 {
-		return sqliteConfigElement{}, fmt.Errorf("resource %s not found", id)
+		return sqliteConfigElement{}, false, nil
 	}
 
-	return elems[0], nil
+	return elems[0], true, nil
 }
 
 func (s *LibSQLConfigDriver) setElement(ctx context.Context, module, path, id string, element, metadata any) error {

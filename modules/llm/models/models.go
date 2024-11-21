@@ -4,15 +4,17 @@ import (
 	"strings"
 
 	"github.com/YourTechBud/inferix/modules/llm/config"
+	"github.com/YourTechBud/inferix/utils"
 )
 
 // Models stores the model configurations
 type Models struct {
-	models map[string]config.ModelConfig
+	models  map[string]config.ModelConfig
+	storage *utils.WorkspaceStorage
 }
 
 // New initializes the models map with the given configurations
-func New(modelConfigs []config.ModelConfig) *Models {
+func New(modelConfigs []config.ModelConfig, storage *utils.WorkspaceStorage) *Models {
 	models := make(map[string]config.ModelConfig)
 	for _, model := range modelConfigs {
 		// Trim whitespace
@@ -29,5 +31,5 @@ func New(modelConfigs []config.ModelConfig) *Models {
 			models[alias] = model
 		}
 	}
-	return &Models{models}
+	return &Models{models, storage}
 }

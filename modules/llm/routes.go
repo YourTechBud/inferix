@@ -6,6 +6,7 @@ import (
 	"github.com/YourTechBud/inferix/modules/llm/apis/openai"
 	"github.com/YourTechBud/inferix/modules/llm/apis/tei"
 	"github.com/YourTechBud/inferix/modules/llm/backends"
+	"github.com/YourTechBud/inferix/modules/llm/models"
 	"github.com/YourTechBud/inferix/utils"
 )
 
@@ -20,12 +21,13 @@ func (llm *LLM) Middlewares() []utils.HTTPMiddleware {
 	return nil
 }
 
-func initializeRoutes(backends *backends.Backends) chi.Router {
+func initializeRoutes(models *models.Models, backends *backends.Backends) chi.Router {
 	router := chi.NewRouter()
 
 	// APIs for OpenAI
 	router.Post("/chat/completions", openai.HandleChatCompletion(backends))
 	router.Post("/embeddings", openai.HandleCreateEmbeddings(backends))
+	router.Get("/models", openai.HandleGetModels(models))
 
 	// APIs for TEI
 	router.Post("/embed", tei.HandleEmbed(backends))
