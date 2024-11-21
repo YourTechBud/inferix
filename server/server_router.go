@@ -127,12 +127,6 @@ func (s *Server) handleCreateWorkspace() http.HandlerFunc {
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Throw an error for the file driver
-		if s.options.ConfigDriver == utils.ConfigDriverType_File {
-			utils.WriteJSONError(w, utils.NewStandardError(http.StatusNotImplemented, "Workspace management is not supported with the file driver", "not_implemented"))
-			return
-		}
-
 		// Get the server context
 		serverContext := utils.GetRequestContext(r)
 
@@ -155,12 +149,6 @@ func (s *Server) handleCreateWorkspace() http.HandlerFunc {
 
 func (s *Server) handleDeleteWorkspace() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Throw an error for the file driver
-		if s.options.ConfigDriver == utils.ConfigDriverType_File {
-			utils.WriteJSONError(w, utils.NewStandardError(http.StatusNotImplemented, "Workspace management is not supported with the file driver", "not_implemented"))
-			return
-		}
-
 		// Get the server context
 		serverContext := utils.GetRequestContext(r)
 

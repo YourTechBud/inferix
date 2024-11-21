@@ -56,8 +56,8 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	// Setup the flags
-	rootCmd.Flags().String("config-driver", "libsql", "The configuration driver to use.")
-	rootCmd.Flags().String("config-path", "./inferix", "Path to your configuration.")
+	rootCmd.Flags().String("storage-driver", "libsql", "The storage driver to use.")
+	rootCmd.Flags().String("storage-dir", "./inferix", "Path to your data directory.")
 	rootCmd.Flags().String("default-config-path", "", "Path to your default configuration.")
 	rootCmd.Flags().Bool("create-default-workspace", true, "Create a default workspace.")
 
@@ -69,8 +69,8 @@ func init() {
 	rootCmd.Flags().String("auth.pass", "1234", "The password to use for authentication.")
 
 	// Bind the flags with viper
-	viper.BindPFlag("config-driver", rootCmd.Flags().Lookup("config-driver"))
-	viper.BindPFlag("config-path", rootCmd.Flags().Lookup("config-path"))
+	viper.BindPFlag("storage-driver", rootCmd.Flags().Lookup("storage-driver"))
+	viper.BindPFlag("storage-dir", rootCmd.Flags().Lookup("storage-dir"))
 	viper.BindPFlag("default-config-path", rootCmd.Flags().Lookup("default-config-path"))
 	viper.BindPFlag("create-default-workspace", rootCmd.Flags().Lookup("create-default-workspace"))
 

@@ -34,12 +34,12 @@ func removeFields(value *fastjson.Value, fields []string) {
 	}
 }
 
-func getConfigDir(configPath, tenant, workspace string) string {
+func getWorkspaceDir(configPath, tenant, workspace string) string {
 	return path.Join(configPath, tenant, workspace)
 }
 
-func getConfigPath(configPath, tenant, workspace string) string {
-	return path.Join(getConfigDir(configPath, tenant, workspace), "config.db")
+func getWorkspaceDBPath(configPath, tenant, workspace string) string {
+	return path.Join(getWorkspaceDir(configPath, tenant, workspace), "workspace.db")
 }
 
 var modulesList = []utils.ModuleInfo{

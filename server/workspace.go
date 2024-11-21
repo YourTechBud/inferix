@@ -41,7 +41,7 @@ func (s *Server) NewWorkspace(ctx context.Context, tenant, workspace string) err
 
 	// Check if the workspace already exists
 	// TODO: How do we handle this for configdrivers which are not file based?
-	configPath := getConfigPath(s.options.ConfigPath, tenant, workspace)
+	configPath := getWorkspaceDBPath(s.options.StorageDirectory, tenant, workspace)
 	if utils.CheckIfFileExists(configPath) {
 		return fmt.Errorf("workspace already exists")
 	}
@@ -78,7 +78,7 @@ func (s *Server) RemoveWorkspace(ctx context.Context, tenant, workspace string) 
 
 	// Delete all the workspace files
 	// TODO: How do we handle this for configdrivers which are not file based?
-	configPath := getConfigDir(s.options.ConfigPath, tenant, workspace)
+	configPath := getWorkspaceDir(s.options.StorageDirectory, tenant, workspace)
 	_ = utils.DeleteDirectory(configPath)
 
 	return nil
@@ -98,7 +98,7 @@ func (s *Server) LoadWorkspace(ctx context.Context, tenant, workspace string) er
 
 	// Check if the workspace exists in the config driver
 	// TODO: How do we handle this for configdrivers which are not file based?
-	configPath := getConfigPath(s.options.ConfigPath, tenant, workspace)
+	configPath := getWorkspaceDBPath(s.options.StorageDirectory, tenant, workspace)
 	if !utils.CheckIfFileExists(configPath) {
 		return fmt.Errorf("workspace does not exist")
 	}
@@ -120,7 +120,7 @@ func (s *Server) loadWorkspace(ctx context.Context, tenant, workspace string) er
 	workspaceKey := getWorkspaceKey(tenant, workspace)
 
 	// Setup the path for the workspace
-	configPath := getConfigPath(s.options.ConfigPath, tenant, workspace)
+	configPath := getWorkspaceDBPath(s.options.StorageDirectory, tenant, workspace)
 
 	// First create the containing directory if it doesn't exist
 	if err := utils.CreateDirIfNotExists(configPath); err != nil {
@@ -128,7 +128,7 @@ func (s *Server) loadWorkspace(ctx context.Context, tenant, workspace string) er
 	}
 
 	// Open the database
-	db, err := sqlx.Open(string(s.options.ConfigDriver), fmt.Sprintf("file://%s", configPath))
+	db, err := sqlx.Open(s.options.StorageDriver, fmt.Sprintf("file://%s", configPath))
 	if err != nil {
 		return err
 	}

@@ -83,9 +83,6 @@ type (
 	// RequestContextKeyType is the type for the server context key
 	RequestContextKeyType string
 
-	// ConfigDriverType is the type of configuration driver to use
-	ConfigDriverType string
-
 	// ConfigDriver is an interface for managing configuration
 	ConfigDriver interface {
 		SetResource(ctx context.Context, module, path, id string, element, metadata any) error
@@ -101,9 +98,6 @@ type (
 
 const (
 	RequestContextKey RequestContextKeyType = "request_context"
-
-	ConfigDriverType_File   ConfigDriverType = "file"
-	ConfigDriverType_LibSQL ConfigDriverType = "libsql"
 )
 
 func NewWorkspaceContext(tenant, workspace, module string, configdriver ConfigDriver) *WorkspaceContext {
