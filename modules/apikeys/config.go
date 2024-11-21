@@ -13,11 +13,16 @@ type (
 	// APIKey is the struct for an API key
 	APIKey struct {
 		ID         string `json:"id"`
-		Name       string `json:"name" validate:"required,min=3,max=50"`
+		Desc       string `json:"desc" validate:"required,min=3,max=50"`
 		Hash       string `json:"hash"`
 		Salt       string `json:"salt"`
 		LastDigits string `json:"last_digits"`
-		Active     bool   `json:"active"` // TODO: Implement this
+		Active     bool   `json:"active"`
+	}
+
+	// Metadata is the metadata for the API key resource
+	Metadata struct {
+		LastUsedAt int64 `json:"last_used_at"`
 	}
 )
 
@@ -27,11 +32,11 @@ func (a *APIKey) GetID() string {
 }
 
 // Provision generates a new apiKey along with the hash
-func (a *APIKey) Provision(ctx *utils.RequestContext) (any, error) {
+func (a *APIKey) Provision(ctx *utils.RequestContext) (returningValue, metadata any, err error) {
 	// Generate a new api key
 	apiKey, hash, err := generateAPIKey(ctx.Tenant(), ctx.Workspace(), a.ID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Don't forget to store the hash in the config
@@ -39,11 +44,11 @@ func (a *APIKey) Provision(ctx *utils.RequestContext) (any, error) {
 	a.Salt = ""
 	a.LastDigits = apiKey[len(apiKey)-6:]
 
-	return map[string]string{"id": a.ID, "key": apiKey}, nil
+	return map[string]string{"id": a.ID, "key": apiKey}, Metadata{LastUsedAt: utils.CurrentTime()}, nil
 }
 
 // Update simply updates the title of the previous api key. No other keys is allowed to be updated.
-func (a *APIKey) Update(ctx *utils.RequestContext, oldValue any) (any, error) {
+func (a *APIKey) Update(ctx *utils.RequestContext, oldValue, oldMetadata any) (returningValue, metadata any, err error) {
 	// Set all the values from the old key
 	oldResource := oldValue.(*APIKey)
 
@@ -51,7 +56,7 @@ func (a *APIKey) Update(ctx *utils.RequestContext, oldValue any) (any, error) {
 	a.Salt = oldResource.Salt
 	a.LastDigits = oldResource.LastDigits
 
-	return map[string]string{"id": a.ID}, nil
+	return map[string]string{"id": a.ID}, metadata, nil
 }
 
 var _ utils.ResourceProvisioner = (*APIKey)(nil)

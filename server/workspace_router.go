@@ -44,7 +44,7 @@ func (workspace *Workspace) intializeRouter() {
 
 		// Setup the api routes if any
 		if routes := workspace.modules[i].Routes(); routes != nil {
-			apiRouter.Mount(fmt.Sprintf("/%s", name), workspace.createModuleRouter(workspace.modules[i].Routes()))
+			apiRouter.Mount(fmt.Sprintf("/%s", name), workspace.createModuleRouter(routes))
 		}
 
 		// Setup the config routes
@@ -138,6 +138,9 @@ func (workspace *Workspace) configSetHandler(module string, resourceInfo utils.R
 		// The value to return to the user.
 		var returningValue any = nil
 
+		// Metadata to store alongside the resource.
+		var metadata any = nil
+
 		// Check if the resource already doesResourceExists
 		doesResourceExists, err := workspace.configDriver.CheckIfResourceExists(r.Context(), module, resourceInfo.Path, resource.GetID())
 		if err != nil {
@@ -147,13 +150,14 @@ func (workspace *Workspace) configSetHandler(module string, resourceInfo utils.R
 		if !doesResourceExists {
 			// Initialize the resource if it supports it
 			if provisioner, ok := resource.(utils.ResourceProvisioner); ok {
-				val, err := provisioner.Provision(r.Context().Value(utils.RequestContextKey).(*utils.RequestContext))
+				val, md, err := provisioner.Provision(utils.GetRequestContext(r))
 				if err != nil {
 					utils.WriteJSONError(w, utils.NewStandardError(http.StatusBadRequest, fmt.Sprintf("Error initializing resource: %s", err), "invalid_request"))
 					return
 				}
 
 				returningValue = val
+				metadata = md
 			}
 		} else {
 			// Update the resource if it supports it
@@ -168,14 +172,18 @@ func (workspace *Workspace) configSetHandler(module string, resourceInfo utils.R
 
 				// Invoke the lifecycle hook
 				oldResource := resourceInfo.New()
-				_ = json.Unmarshal(oldValue, oldResource)
-				val, err := updater.Update(r.Context().Value(utils.RequestContextKey).(*utils.RequestContext), oldResource)
+				_ = json.Unmarshal(oldValue.Config, oldResource)
+				oldMetadata := make(map[string]any)
+				_ = json.Unmarshal(oldValue.Metadata, &oldMetadata)
+
+				val, md, err := updater.Update(utils.GetRequestContext(r), oldResource, oldMetadata)
 				if err != nil {
 					utils.WriteJSONError(w, utils.NewStandardError(http.StatusBadRequest, fmt.Sprintf("Error updating resource: %s", err), "invalid_request"))
 					return
 				}
 
 				returningValue = val
+				metadata = md
 			}
 		}
 
@@ -188,17 +196,9 @@ func (workspace *Workspace) configSetHandler(module string, resourceInfo utils.R
 		}
 
 		// Write the resource to the config store
-		switch resourceInfo.Type {
-		case utils.ConfigResourceType_Object:
-			if err := workspace.configDriver.SetInObject(r.Context(), module, resourceInfo.Path, resource.GetID(), resource); err != nil {
-				utils.WriteJSONError(w, utils.NewStandardError(http.StatusInternalServerError, fmt.Sprintf("Error writing configuration: %s", err), "config_error"))
-				return
-			}
-		case utils.ConfigResourceType_Array:
-			if err := workspace.configDriver.SetInArray(r.Context(), module, resourceInfo.Path, resource.GetID(), resource); err != nil {
-				utils.WriteJSONError(w, utils.NewStandardError(http.StatusInternalServerError, fmt.Sprintf("Error writing configuration: %s", err), "config_error"))
-				return
-			}
+		if err := workspace.configDriver.SetResource(r.Context(), module, resourceInfo.Path, resource.GetID(), resource, metadata); err != nil {
+			utils.WriteJSONError(w, utils.NewStandardError(http.StatusInternalServerError, fmt.Sprintf("Error writing configuration: %s", err), "config_error"))
+			return
 		}
 
 		// Update the modules
@@ -216,7 +216,7 @@ func (workspace *Workspace) configSetHandler(module string, resourceInfo utils.R
 
 func (workspace *Workspace) configGetHandler(module string, resourceInfo utils.ResourceInfo) http.HandlerFunc {
 	type response struct {
-		Resources json.RawMessage `json:"resources"`
+		Resources []*utils.ResourceObject `json:"resources"`
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -230,23 +230,20 @@ func (workspace *Workspace) configGetHandler(module string, resourceInfo utils.R
 			return
 		}
 
-		// Default to an empty object or array
-		if resources == nil {
-			switch resourceInfo.Type {
-			case utils.ConfigResourceType_Object:
-				resources = json.RawMessage("{}")
-			case utils.ConfigResourceType_Array:
-				resources = json.RawMessage("[]")
-			}
-		}
-
 		// Don't forget to remove the protected fields
-		var p fastjson.Parser
-		parsedResponse, _ := p.Parse(string(resources))
-		removeFields(parsedResponse, resourceInfo.ProtectedFields)
 
+		for _, resource := range resources {
+			var p fastjson.Parser
+			parsedResource, err := p.Parse(string(resource.Config))
+			if err != nil {
+				log.Default().Println("Error parsing resource config", err)
+				continue
+			}
+			removeFields(parsedResource, resourceInfo.ProtectedFields)
+			resource.Config = parsedResource.MarshalTo(nil)
+		}
 		// Write the resources
-		utils.WriteJSON(w, response{Resources: parsedResponse.MarshalTo(nil)})
+		utils.WriteJSON(w, response{Resources: resources})
 	}
 }
 
@@ -256,17 +253,9 @@ func (workspace *Workspace) configDeleteHandler(module string, resourceInfo util
 		path := resourceInfo.Path
 
 		// Delete the resource
-		switch resourceInfo.Type {
-		case utils.ConfigResourceType_Object:
-			if err := workspace.configDriver.DeleteFromObject(r.Context(), module, path, chi.URLParam(r, "id")); err != nil {
-				utils.WriteJSONError(w, utils.NewStandardError(http.StatusInternalServerError, "Error deleting configuration", "config_error"))
-				return
-			}
-		case utils.ConfigResourceType_Array:
-			if err := workspace.configDriver.DeleteFromArray(r.Context(), module, path, chi.URLParam(r, "id")); err != nil {
-				utils.WriteJSONError(w, utils.NewStandardError(http.StatusInternalServerError, "Error deleting configuration", "config_error"))
-				return
-			}
+		if err := workspace.configDriver.DeleteResource(r.Context(), module, path, chi.URLParam(r, "id")); err != nil {
+			utils.WriteJSONError(w, utils.NewStandardError(http.StatusInternalServerError, "Error deleting configuration", "config_error"))
+			return
 		}
 
 		// Update the modules

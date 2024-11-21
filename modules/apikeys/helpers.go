@@ -61,23 +61,23 @@ func generateAPIKey(tenant, workspace, id string) (apiKey, hashValue string, err
 	return
 }
 
-func validate(apiKey string, config *Config) error {
+func (module *Module) validate(apiKey string) (string, error) {
 	// Get the key segments
 	_, _, id, key, err := GetKeySegments(apiKey)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	for _, cfg := range config.APIKeys {
-		if cfg.ID != id {
-			continue
-		}
-		if err := hash.DefaultHasher.Compare(cfg.Hash, key); err == nil {
-			// The key is valid
-			return nil
-		}
+	// Check if key exists
+	cfg, p := module.apiKeys[id]
+	if !p || !cfg.Active {
+		return "", utils.NewStandardError(http.StatusUnauthorized, "Invalid API key", "invalid_api_key")
 	}
 
-	// The key is invalid
-	return utils.NewStandardError(http.StatusUnauthorized, "Invalid API key", "invalid_api_key")
+	if err := hash.DefaultHasher.Compare(cfg.Hash, key); err != nil {
+		// The key is valid
+		return "", utils.NewStandardError(http.StatusUnauthorized, "Invalid API key", "invalid_api_key")
+	}
+
+	return id, nil
 }

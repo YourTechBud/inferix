@@ -4,18 +4,27 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"path"
 	"sync"
 
-	"github.com/YourTechBud/inferix/utils"
 	"github.com/go-chi/chi/v5"
+	"github.com/jmoiron/sqlx"
+	_ "github.com/tursodatabase/go-libsql"
+
+	"github.com/YourTechBud/inferix/utils"
 )
 
 // Workspace is a map of modules
 type Workspace struct {
-	lock         sync.RWMutex
-	modules      []utils.Module
-	configDriver ConfigDriver
+	lock    sync.RWMutex
+	modules []utils.Module
+
+	// Metadata
+	tenant    string
+	workspace string
+
+	// Config driver for the workspace
+	db           *sqlx.DB
+	configDriver utils.ConfigDriver
 
 	// Channel to signal config update
 	chanUpdateConfig chan struct{}
@@ -111,18 +120,21 @@ func (s *Server) loadWorkspace(ctx context.Context, tenant, workspace string) er
 	workspaceKey := getWorkspaceKey(tenant, workspace)
 
 	// Setup the path for the workspace
-	configPath := s.options.ConfigPath
-	if s.options.ConfigDriver == ConfigDriverType_LibSQL {
-		// For libsql driver, the config path is grouped by tenant and workspace
-		configPath = path.Join(s.options.ConfigPath, tenant, workspace, "config.db")
+	configPath := getConfigPath(s.options.ConfigPath, tenant, workspace)
+
+	// First create the containing directory if it doesn't exist
+	if err := utils.CreateDirIfNotExists(configPath); err != nil {
+		return err
+	}
+
+	// Open the database
+	db, err := sqlx.Open(string(s.options.ConfigDriver), fmt.Sprintf("file://%s", configPath))
+	if err != nil {
+		return err
 	}
 
 	// Create a config driver for the workspace
-	configDriver, err := initialiseConfigDriver(Options{
-		ConfigDriver:      s.options.ConfigDriver,
-		ConfigPath:        configPath,
-		DefaultConfigPath: s.options.DefaultConfigPath,
-	})
+	configDriver, err := NewLibSQLConfigDriver(db, s.defaultConfig)
 	if err != nil {
 		return err
 	}
@@ -132,7 +144,12 @@ func (s *Server) loadWorkspace(ctx context.Context, tenant, workspace string) er
 		// Create the modules map
 		modules: make([]utils.Module, 0),
 
+		// Metadata
+		tenant:    tenant,
+		workspace: workspace,
+
 		// Set the config driver
+		db:           db,
 		configDriver: configDriver,
 
 		// Create the channels
@@ -180,5 +197,6 @@ func (workspace *Workspace) Stop() error {
 	// Close the config driver
 	// TODO: Deal with the error in a better way
 	_ = workspace.configDriver.Close()
+	_ = workspace.db.Close()
 	return nil
 }

@@ -20,7 +20,7 @@ type LLM struct {
 }
 
 // New creates a new LLM struct
-func New(cfg json.RawMessage) (utils.Module, error) {
+func New(_ *utils.WorkspaceContext, cfg json.RawMessage) (utils.Module, error) {
 	// Unmarshal the configuration
 	config := new(config.Config)
 	if err := json.Unmarshal(cfg, config); err != nil {

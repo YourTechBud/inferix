@@ -7,29 +7,31 @@ import (
 )
 
 type Module struct {
-	middlewares []utils.HTTPMiddleware
+	apiKeys          map[string]APIKey
+	workspaceStorage *utils.WorkspaceStorage
 }
 
-func New(cfg json.RawMessage) (utils.Module, error) {
+func New(workspaceCtx *utils.WorkspaceContext, cfg json.RawMessage) (utils.Module, error) {
 	// Unmarshal the configuration
 	config := new(Config)
 	if err := json.Unmarshal(cfg, config); err != nil {
 		return nil, err
 	}
 
-	middlewares := []utils.HTTPMiddleware{
-		initializeMiddleware(config),
+	// Store the API keys in a map for easy access
+	apiKeys := make(map[string]APIKey, len(config.APIKeys))
+	for _, apiKey := range config.APIKeys {
+		apiKeys[apiKey.ID] = apiKey
 	}
+
 	// Return the module
 	return &Module{
-		middlewares: middlewares,
+		apiKeys:          apiKeys,
+		workspaceStorage: workspaceCtx.Storage,
 	}, nil
 }
 
 func (module *Module) Close() error {
-	// Close the middleware
-	module.middlewares = nil
-
 	// Return nil
 	return nil
 }

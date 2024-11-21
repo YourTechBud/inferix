@@ -9,7 +9,7 @@ import (
 )
 
 func (module *Module) Middlewares() []utils.HTTPMiddleware {
-	return module.middlewares
+	return []utils.HTTPMiddleware{module.initializeMiddleware()}
 }
 
 func (module *Module) Routes() chi.Router {
@@ -17,13 +17,13 @@ func (module *Module) Routes() chi.Router {
 	return nil
 }
 
-func initializeMiddleware(config *Config) utils.HTTPMiddleware {
+func (module *Module) initializeMiddleware() utils.HTTPMiddleware {
 	return utils.HTTPMiddleware{
 		RouteTypes: []utils.HTTPRouteType{utils.HTTPRouteType_API},
 		Handler: func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				// First check if the request has already been authenticated
-				if r.Context().Value(utils.RequestContextKey).(*utils.RequestContext).Authenticated() {
+				if utils.GetRequestContext(r).Authenticated() {
 					next.ServeHTTP(w, r)
 					return
 				}
@@ -35,10 +35,16 @@ func initializeMiddleware(config *Config) utils.HTTPMiddleware {
 				apiKey = strings.TrimPrefix(apiKey, "Bearer ")
 
 				// Validate the API key
-				if err := validate(apiKey, config); err != nil {
+				keyID, err := module.validate(apiKey)
+				if err != nil {
 					utils.WriteJSONError(w, err)
 					return
 				}
+
+				// Update the last used time
+				go func(id string) {
+					module.workspaceStorage.UpdateConfigMetadata(r.Context(), "keys", id, Metadata{LastUsedAt: utils.CurrentTime()})
+				}(keyID)
 
 				next.ServeHTTP(w, r)
 			})

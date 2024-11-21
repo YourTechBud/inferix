@@ -19,27 +19,7 @@ type LibSQLConfigDriver struct {
 }
 
 // NewLibSQLConfigDriver creates a new SqliteConfigDriver
-func NewLibSQLConfigDriver(opts Options) (*LibSQLConfigDriver, error) {
-	// First create the containing directory if it doesn't exist
-	if err := utils.CreateDirIfNotExists(opts.ConfigPath); err != nil {
-		return nil, err
-	}
-
-	// Open the database
-	db, err := sqlx.Open("libsql", fmt.Sprintf("file://%s", opts.ConfigPath))
-	if err != nil {
-		return nil, err
-	}
-
-	// Load the default configuration if provided
-	var defaultConfig map[string]any
-	if opts.DefaultConfigPath != "" {
-		// Read the default configuration
-		if err := utils.ReadYAMLFile(opts.DefaultConfigPath, &defaultConfig); err != nil {
-			return nil, err
-		}
-	}
-
+func NewLibSQLConfigDriver(db *sqlx.DB, defaultConfig map[string]any) (*LibSQLConfigDriver, error) {
 	// Create the table
 	if _, err := db.Exec(sqliteConfigSchema); err != nil {
 		return nil, err
@@ -52,7 +32,7 @@ func NewLibSQLConfigDriver(opts Options) (*LibSQLConfigDriver, error) {
 }
 
 func (s *LibSQLConfigDriver) Close() error {
-	return s.db.Close()
+	return nil
 }
 
 func (s *LibSQLConfigDriver) ReadAll(ctx context.Context) (json.RawMessage, error) {
@@ -79,22 +59,38 @@ func (s *LibSQLConfigDriver) ReadAll(ctx context.Context) (json.RawMessage, erro
 	return json.Marshal(cfg)
 }
 
-func (s *LibSQLConfigDriver) GetAllResources(ctx context.Context, module, path string) (json.RawMessage, error) {
+func (s *LibSQLConfigDriver) GetAllResources(ctx context.Context, module, path string) ([]*utils.ResourceObject, error) {
 	elems, err := s.getElementsByModuleAndPath(ctx, module, path)
 	if err != nil {
 		return nil, err
 	}
 
-	return elems.getValueAtPath(module, path)
+	// Convert the elements to resources
+	resources := make([]*utils.ResourceObject, len(elems))
+	for i, elem := range elems {
+		resources[i] = &utils.ResourceObject{
+			Config:    json.RawMessage(elem.Config),
+			Metadata:  json.RawMessage(elem.Metadata),
+			CreatedAt: elem.CreatedAt,
+			UpdatedAt: elem.UpdatedAt,
+		}
+	}
+
+	return resources, nil
 }
 
-func (s *LibSQLConfigDriver) GetResource(ctx context.Context, module, path, id string) (json.RawMessage, error) {
+func (s *LibSQLConfigDriver) GetResource(ctx context.Context, module, path, id string) (*utils.ResourceObject, error) {
 	elem, err := s.getElementsByID(ctx, module, path, id)
 	if err != nil {
 		return nil, err
 	}
 
-	return json.RawMessage(elem.Config), nil
+	return &utils.ResourceObject{
+		Config:    json.RawMessage(elem.Config),
+		Metadata:  json.RawMessage(elem.Metadata),
+		CreatedAt: elem.CreatedAt,
+		UpdatedAt: elem.UpdatedAt,
+	}, nil
 }
 
 func (s *LibSQLConfigDriver) CheckIfResourceExists(ctx context.Context, module, path, id string) (bool, error) {
@@ -106,19 +102,22 @@ func (s *LibSQLConfigDriver) CheckIfResourceExists(ctx context.Context, module, 
 	return count > 0, nil
 }
 
-func (s *LibSQLConfigDriver) SetInArray(ctx context.Context, module, path, id string, element interface{}) error {
-	return s.setElement(ctx, module, path, id, "ARRAY", element)
+func (s *LibSQLConfigDriver) SetResource(ctx context.Context, module, path, id string, element, metadata any) error {
+	return s.setElement(ctx, module, path, id, element, metadata)
 }
 
-func (s *LibSQLConfigDriver) SetInObject(ctx context.Context, module, path, id string, element interface{}) error {
-	return s.setElement(ctx, module, path, id, "OBJECT", element)
+func (s *LibSQLConfigDriver) SetResourceMetadata(ctx context.Context, module, path, id string, metadata any) error {
+	// Convert the metadata to JSON
+	metadataData, err := json.Marshal(metadata)
+	if err != nil {
+		return err
+	}
+
+	_, err = s.db.ExecContext(ctx, "UPDATE config SET metadata = ? WHERE module = ? AND path = ? AND element_id = ?", string(metadataData), module, path, id)
+	return err
 }
 
-func (s *LibSQLConfigDriver) DeleteFromArray(ctx context.Context, module, path, id string) error {
-	return s.deleteElement(ctx, module, path, id)
-}
-
-func (s *LibSQLConfigDriver) DeleteFromObject(ctx context.Context, module, path, id string) error {
+func (s *LibSQLConfigDriver) DeleteResource(ctx context.Context, module, path, id string) error {
 	return s.deleteElement(ctx, module, path, id)
 }
 
@@ -144,18 +143,30 @@ func (s *LibSQLConfigDriver) getElementsByID(ctx context.Context, module, path, 
 	return elems[0], nil
 }
 
-func (s *LibSQLConfigDriver) setElement(ctx context.Context, module, path, id, elementType string, element interface{}) error {
-	query := `INSERT INTO config (module, path, element_id, element_type, config) VALUES (?, ?, ?, ?, ?)
-	ON CONFLICT (module, path, element_id) DO UPDATE SET config = ?`
+func (s *LibSQLConfigDriver) setElement(ctx context.Context, module, path, id string, element, metadata any) error {
+	query := `INSERT INTO config (module, path, element_id, config, metadata, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+	ON CONFLICT (module, path, element_id) DO UPDATE SET config = ?, metadata = ?, updated_at = ?`
+
+	// Make sure metadata is not nil
+	if metadata == nil {
+		metadata = map[string]any{}
+	}
 
 	// Convert the element to JSON
-	data, err := json.Marshal(element)
+	elementData, err := json.Marshal(element)
+	if err != nil {
+		return err
+	}
+
+	// Convert the metadata to JSON
+	metadataData, err := json.Marshal(metadata)
 	if err != nil {
 		return err
 	}
 
 	// Execute the query
-	_, err = s.db.ExecContext(ctx, query, module, path, id, elementType, string(data), string(data))
+	currentTime := utils.CurrentTime()
+	_, err = s.db.ExecContext(ctx, query, module, path, id, string(elementData), string(metadataData), currentTime, currentTime, string(elementData), string(metadataData), currentTime)
 	return err
 }
 
@@ -166,11 +177,13 @@ func (s *LibSQLConfigDriver) deleteElement(ctx context.Context, module, path, id
 
 type (
 	sqliteConfigElement struct {
-		Module      string `db:"module"`
-		Path        string `db:"path"`
-		ElementID   string `db:"element_id"`
-		ElementType string `db:"element_type"`
-		Config      string `db:"config"`
+		Module    string `db:"module"`
+		Path      string `db:"path"`
+		ElementID string `db:"element_id"`
+		Config    string `db:"config"`
+		Metadata  string `db:"metadata"`
+		CreatedAt int64  `db:"created_at"`
+		UpdatedAt int64  `db:"updated_at"`
 	}
 
 	sqliteConfigElements []sqliteConfigElement
@@ -204,7 +217,7 @@ func (c sqliteConfigElements) convertToMap() map[string]any {
 			var p bool
 			next, p = obj[pathElement]
 			if !p {
-				if i == pathLength-1 && elem.ElementType == "ARRAY" {
+				if i == pathLength-1 {
 					// This is the last element and it is an array
 					next = []any{}
 				} else {
@@ -215,56 +228,27 @@ func (c sqliteConfigElements) convertToMap() map[string]any {
 			}
 		}
 
-		if elem.ElementType == "OBJECT" {
-			next.(map[string]any)[elem.ElementID] = json.RawMessage(elem.Config)
-		} else {
-			// Check if any element in the array has the provided id
-			found := false
-			arr := next.([]any)
-			for i, v := range arr {
-				id := fastjson.GetString(v.(json.RawMessage), "id")
-				if id == elem.ElementID {
-					// Update the element
-					arr[i] = json.RawMessage(elem.Config)
-					found = true
-					break
-				}
+		// Check if any element in the array has the provided id
+		found := false
+		arr := next.([]any)
+		for i, v := range arr {
+			id := fastjson.GetString(v.(json.RawMessage), "id")
+			if id == elem.ElementID {
+				// Update the element
+				arr[i] = json.RawMessage(elem.Config)
+				found = true
+				break
 			}
+		}
 
-			if !found {
-				// Add the element to the same slice so we don't have to update the map
-				arr = append(arr, json.RawMessage(elem.Config))
-				obj[pathArr[pathLength-1]] = arr
-			}
+		if !found {
+			// Add the element to the same slice so we don't have to update the map
+			arr = append(arr, json.RawMessage(elem.Config))
+			obj[pathArr[pathLength-1]] = arr
 		}
 	}
 
 	return cfg
-}
-
-func (c sqliteConfigElements) getValueAtPath(module, path string) (json.RawMessage, error) {
-	// Create a map of the elements
-	cfg := c.convertToMap()
-
-	// Get the leaf element
-	if _, p := cfg[module]; !p {
-		return nil, nil
-	}
-
-	// Get the leaf element
-	value := utils.GetValueAtPath(cfg[module].(map[string]any), path, nil)
-
-	// Check if the value is nil
-	if value == nil {
-		return nil, nil
-	}
-
-	// Check if the value is a JSON message
-	if jsonValue, ok := value.(json.RawMessage); ok {
-		return jsonValue, nil
-	}
-
-	return json.Marshal(value)
 }
 
 var sqliteConfigSchema = `
@@ -272,10 +256,12 @@ CREATE TABLE IF NOT EXISTS config (
 	module TEXT NOT NULL,					-- The module name
 	path TEXT NOT NULL,						-- The path to the module
 	element_id TEXT NOT NULL,				-- The id of the configuration resource
-	element_type TEXT NOT NULL,				-- "OBJECT" or "ARRAY"
 	config TEXT NOT NULL,					-- The configuration in JSON format
+	metadata TEXT NOT NULL,					-- The metadata in JSON format
+	created_at INTEGER NOT NULL,			-- The time the configuration was created
+	updated_at INTEGER NOT NULL,			-- The time the configuration was last updated
 	PRIMARY KEY (module, path, element_id)
 ) STRICT;
 `
 
-var _ ConfigDriver = (*LibSQLConfigDriver)(nil)
+var _ utils.ConfigDriver = (*LibSQLConfigDriver)(nil)

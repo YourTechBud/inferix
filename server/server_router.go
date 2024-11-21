@@ -16,7 +16,7 @@ import (
 func (s *Server) middlewareAuthentication(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// First get the request context
-		requestContext := r.Context().Value(utils.RequestContextKey).(*utils.RequestContext)
+		requestContext := utils.GetRequestContext(r)
 
 		// Check if authentication is enabled or not
 		if !s.options.AuthOptions.Enabled {
@@ -93,7 +93,7 @@ func (s *Server) middlewareServerContext(next http.Handler) http.Handler {
 func (s *Server) middlewareLoadWorkspace(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Get the server context
-		serverContext := r.Context().Value(utils.RequestContextKey).(*utils.RequestContext)
+		serverContext := utils.GetRequestContext(r)
 
 		// Try loading the workspace into memory
 		if err := s.LoadWorkspace(r.Context(), serverContext.Tenant(), serverContext.Workspace()); err != nil {
@@ -128,13 +128,13 @@ func (s *Server) handleCreateWorkspace() http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Throw an error for the file driver
-		if s.options.ConfigDriver == ConfigDriverType_File {
+		if s.options.ConfigDriver == utils.ConfigDriverType_File {
 			utils.WriteJSONError(w, utils.NewStandardError(http.StatusNotImplemented, "Workspace management is not supported with the file driver", "not_implemented"))
 			return
 		}
 
 		// Get the server context
-		serverContext := r.Context().Value(utils.RequestContextKey).(*utils.RequestContext)
+		serverContext := utils.GetRequestContext(r)
 
 		// Parse the request
 		var req createWorkspaceRequest
@@ -156,13 +156,13 @@ func (s *Server) handleCreateWorkspace() http.HandlerFunc {
 func (s *Server) handleDeleteWorkspace() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Throw an error for the file driver
-		if s.options.ConfigDriver == ConfigDriverType_File {
+		if s.options.ConfigDriver == utils.ConfigDriverType_File {
 			utils.WriteJSONError(w, utils.NewStandardError(http.StatusNotImplemented, "Workspace management is not supported with the file driver", "not_implemented"))
 			return
 		}
 
 		// Get the server context
-		serverContext := r.Context().Value(utils.RequestContextKey).(*utils.RequestContext)
+		serverContext := utils.GetRequestContext(r)
 
 		// Get the workspace
 		workspace := chi.URLParam(r, "workspace")
@@ -183,7 +183,7 @@ func (s *Server) handleWorkspaceRoutes() http.Handler {
 		defer s.lock.RUnlock()
 
 		// First get the server context
-		serverContext := r.Context().Value(utils.RequestContextKey).(*utils.RequestContext)
+		serverContext := utils.GetRequestContext(r)
 
 		// Get the workspace
 		workspaceKey := getWorkspaceKey(serverContext.Tenant(), serverContext.Workspace())

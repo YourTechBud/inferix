@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+
+	"github.com/YourTechBud/inferix/utils"
 )
 
 type Server struct {
-	options Options
+	options       Options
+	defaultConfig map[string]any
 
 	// Workspace related stuff
 	lock       sync.RWMutex
@@ -26,6 +29,13 @@ func (s *Server) Start(ctx context.Context) error {
 	// Create a default workspace for the default tenant
 	if s.options.CreateDefaultWorkspace {
 		if err := s.NewWorkspace(ctx, "default", "default"); err != nil {
+			return err
+		}
+	}
+
+	// Load the default configuration if provided
+	if s.options.DefaultConfigPath != "" {
+		if err := utils.ReadYAMLFile(s.options.DefaultConfigPath, &s.defaultConfig); err != nil {
 			return err
 		}
 	}

@@ -24,8 +24,9 @@ func (workspace *Workspace) configureModules(ctx context.Context) error {
 	modules := make([]utils.Module, len(modulesList))
 	for i, moduleInfo := range modulesList {
 		name := moduleInfo.Name
+		workspaceCtx := utils.NewWorkspaceContext(workspace.tenant, workspace.workspace, name, workspace.configDriver)
 		moduleConfig := v.Get(name).MarshalTo(nil)
-		module, err := moduleInfo.New(moduleConfig)
+		module, err := moduleInfo.New(workspaceCtx, moduleConfig)
 		if err != nil {
 			return err
 		}

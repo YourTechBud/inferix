@@ -56,8 +56,8 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	// Setup the flags
-	rootCmd.Flags().String("config-driver", "file", "The configuration driver to use.")
-	rootCmd.Flags().String("config-path", "inferix.yaml", "Path to your configuration.")
+	rootCmd.Flags().String("config-driver", "libsql", "The configuration driver to use.")
+	rootCmd.Flags().String("config-path", "./inferix", "Path to your configuration.")
 	rootCmd.Flags().String("default-config-path", "", "Path to your default configuration.")
 	rootCmd.Flags().Bool("create-default-workspace", true, "Create a default workspace.")
 
