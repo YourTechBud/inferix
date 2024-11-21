@@ -12,6 +12,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/tursodatabase/go-libsql v0.0.0-20241011135853-3effbb6dea5c
 	github.com/valyala/fastjson v1.6.4
+	golang.org/x/crypto v0.21.0
 )
 
 require (
@@ -41,7 +42,6 @@ require (
 	github.com/subosito/gotenv v1.6.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.9.0 // indirect
-	golang.org/x/crypto v0.21.0 // indirect
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
 	golang.org/x/net v0.23.0 // indirect
 	golang.org/x/sync v0.8.0 // indirect

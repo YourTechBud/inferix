@@ -1,4 +1,4 @@
-package apikeys
+package security
 
 import (
 	"github.com/YourTechBud/inferix/utils"
@@ -7,7 +7,7 @@ import (
 type (
 	// Config is the configuration for the API keys module
 	Config struct {
-		APIKeys []APIKey `json:"keys"`
+		APIKeys []APIKey `json:"api-keys"`
 	}
 
 	// APIKey is the struct for an API key

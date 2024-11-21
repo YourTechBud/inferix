@@ -1,4 +1,4 @@
-package apikeys
+package security
 
 import (
 	"net/http"

@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/YourTechBud/inferix/modules/apikeys"
+	"github.com/YourTechBud/inferix/modules/security"
 	"github.com/YourTechBud/inferix/utils"
 
 	"github.com/go-chi/chi/v5"
@@ -55,7 +55,7 @@ func (s *Server) middlewareServerContext(next http.Handler) http.Handler {
 		apiKey = strings.TrimPrefix(apiKey, "Bearer ")
 		if apiKey != "" && strings.HasPrefix(apiKey, "ik:") {
 			var err error
-			tenant, workspace, _, _, err = apikeys.GetKeySegments(apiKey)
+			tenant, workspace, _, _, err = security.GetKeySegments(apiKey)
 			if err != nil {
 				utils.WriteJSONError(w, err)
 				return

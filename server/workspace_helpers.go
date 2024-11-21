@@ -6,9 +6,9 @@ import (
 
 	"github.com/valyala/fastjson"
 
-	"github.com/YourTechBud/inferix/modules/apikeys"
 	"github.com/YourTechBud/inferix/modules/llm"
 	llmconfig "github.com/YourTechBud/inferix/modules/llm/config"
+	"github.com/YourTechBud/inferix/modules/security"
 	"github.com/YourTechBud/inferix/utils"
 )
 
@@ -44,9 +44,9 @@ func getConfigPath(configPath, tenant, workspace string) string {
 
 var modulesList = []utils.ModuleInfo{
 	{
-		Name:             "apikeys",
-		New:              apikeys.New,
-		GetResourcesInfo: apikeys.GetResourcesInfo,
+		Name:             "security",
+		New:              security.New,
+		GetResourcesInfo: security.GetResourcesInfo,
 	},
 	{
 		Name:             "llm",
