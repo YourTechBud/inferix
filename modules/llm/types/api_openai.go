@@ -110,11 +110,7 @@ type ChatCompletionNamedToolChoice struct {
 }
 
 // ChatCompletionToolChoiceOption represents the tool choice options in chat completion.
-type ChatCompletionToolChoiceOption struct {
-	None            interface{}                    `json:"-"` // for `None` variant
-	Auto            interface{}                    `json:"-"` // for `Auto` variant
-	NamedToolChoice *ChatCompletionNamedToolChoice `json:"named_tool_choice,omitempty"`
-}
+type ChatCompletionToolChoiceOption string
 
 // ResponseFormat represents the format of the response (text or JSON object).
 type ResponseFormat string
