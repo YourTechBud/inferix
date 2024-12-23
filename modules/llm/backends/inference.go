@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"strings"
 
@@ -63,7 +62,7 @@ func (b *Backends) RunInference(ctx context.Context, req types.InferenceRequest,
 				}
 
 				// Set the function call parameters in the response
-				resp.Response.Content = fmt.Sprintf("Execute function %s with arguments: %s", fnCall.Name, string(fnCall.Parameters))
+				resp.Response.Content = ""
 				resp.Response.FnCall = &fnCall
 				resp.Response.FinishReason = types.FinishReason_FunctionCall
 
