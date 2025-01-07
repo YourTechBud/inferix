@@ -1,11 +1,6 @@
 package backends
 
 import (
-	"errors"
-
-	"github.com/YourTechBud/inferix/modules/llm/backends/ollama"
-	"github.com/YourTechBud/inferix/modules/llm/backends/openai"
-	"github.com/YourTechBud/inferix/modules/llm/backends/tei"
 	"github.com/YourTechBud/inferix/modules/llm/config"
 	"github.com/YourTechBud/inferix/modules/llm/models"
 	"github.com/YourTechBud/inferix/modules/llm/types"
@@ -21,31 +16,11 @@ type Backends struct {
 func New(backends []config.BackendConfig, models *models.Models) (*Backends, error) {
 	backendsMap := make(map[string]types.Backend, len(backends))
 	for _, backendConfig := range backends {
-		switch backendConfig.BackendType {
-		case "openai":
-			backend, err := openai.New(backendConfig)
-			if err != nil {
-				return nil, err
-			}
-			backendsMap[backendConfig.ID] = backend
-
-		case "ollama":
-			backend, err := ollama.New(backendConfig)
-			if err != nil {
-				return nil, err
-			}
-			backendsMap[backendConfig.ID] = backend
-
-		case "tei":
-			backend, err := tei.New(backendConfig)
-			if err != nil {
-				return nil, err
-			}
-			backendsMap[backendConfig.ID] = backend
-
-		default:
-			return nil, errors.New("unknown backend type")
+		backend, err := createBackend(backendConfig)
+		if err != nil {
+			return nil, err
 		}
+		backendsMap[backendConfig.ID] = backend
 	}
 
 	return &Backends{

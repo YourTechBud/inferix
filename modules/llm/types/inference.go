@@ -50,6 +50,15 @@ type InferenceOptions struct {
 	NumCtx        *int32          `json:"num_ctx,omitempty"`
 	Temperature   *float64        `json:"temperature,omitempty"`
 	DriverOptions json.RawMessage `json:"driver_options"`
+
+	// Dynamic backend options
+	DynamicBackendOptions *DynamicBackendOptions `json:"dynamic_backend_options,omitempty"`
+}
+
+type DynamicBackendOptions struct {
+	Type string `json:"type"`
+	URL  string `json:"url"`
+	Key  string `json:"key"`
 }
 
 func NewInferenceOptions(topP *float64, topK *int32, numCtx *int32, temperature *float64) InferenceOptions {

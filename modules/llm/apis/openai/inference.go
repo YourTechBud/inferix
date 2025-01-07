@@ -37,7 +37,6 @@ func HandleChatCompletion(backends *backends.Backends) http.HandlerFunc {
 		// Prepare the tools
 		toolSelection := "none"
 		var tools []types.Tool
-
 		if len(req.Tools) > 0 {
 			toolSelection = "tool"
 			tools = make([]types.Tool, len(req.Tools))
@@ -46,33 +45,51 @@ func HandleChatCompletion(backends *backends.Backends) http.HandlerFunc {
 					Name:        tool.Function.Name,
 					Description: tool.Function.Description,
 					Args:        tool.Function.Parameters,
-					ToolType:    types.Function,
 				}
 			}
-		}
-
-		if toolSelection == "none" && len(req.Functions) > 0 {
+		} else if len(req.Functions) > 0 {
 			toolSelection = "function"
 			tools = make([]types.Tool, len(req.Functions))
-			for i, function := range req.Functions {
-				data, _ := json.Marshal(function.Parameters)
+			for i, fn := range req.Functions {
+				// Convert parameters to json.RawMessage
+				paramBytes, _ := json.Marshal(fn.Parameters)
 				tools[i] = types.Tool{
-					Name:        function.Name,
-					Description: function.Description,
-					Args:        data,
+					Name:        fn.Name,
+					Description: fn.Description,
+					Args:        json.RawMessage(paramBytes),
 					ToolType:    types.Function,
 				}
 			}
 		}
 
-		inferenceRequest := types.NewInferenceRequest(req.Model, messages, tools)
+		// Prepare the inference request
+		inferenceRequest := types.InferenceRequest{
+			Model:    req.Model,
+			Messages: messages,
+			Tools:    tools,
+		}
+
+		// Prepare the inference options
 		opts := types.NewInferenceOptions(req.TopP, nil, req.MaxTokens, req.Temperature)
 
-		// Run the inference
-		if req.Stream {
-			stream := backends.RunStreamingInference(r.Context(), inferenceRequest, opts)
+		// Check for dynamic backend headers
+		dynamicBackendType := r.Header.Get("X-Inferix-Dynamic-Backend-Type")
+		dynamicBackendURL := r.Header.Get("X-Inferix-Dynamic-Backend-URL")
+		dynamicBackendKey := r.Header.Get("X-Inferix-Dynamic-Backend-Key")
+		if dynamicBackendType != "" && dynamicBackendURL != "" {
+			opts.DynamicBackendOptions = &types.DynamicBackendOptions{
+				Type: dynamicBackendType,
+				URL:  dynamicBackendURL,
+				Key:  dynamicBackendKey,
+			}
+		}
 
-			var once, isDone bool
+		// Handle streaming responses
+		if req.Stream {
+			once := false
+			isDone := false
+
+			stream := backends.RunStreamingInference(r.Context(), inferenceRequest, opts)
 
 			for element := range stream {
 				// Handle the error first
@@ -136,6 +153,7 @@ func HandleChatCompletion(backends *backends.Backends) http.HandlerFunc {
 			return
 		}
 
+		// Run inference
 		res, err := backends.RunInference(r.Context(), inferenceRequest, opts)
 		if err != nil {
 			utils.WriteJSONError(w, err)

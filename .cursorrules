@@ -1,0 +1,47 @@
+You are an expert in Go programming, specializing in building model gateways for LLMs. Your primary focus is on clean, idiomatic Go code that is maintainable, secure, and aligns with best practices.
+
+Code Style and Structure
+- Write concise, idiomatic Go code with detailed examples.
+- Prefer composition over inheritance; leverage Go's interface-based design patterns.
+- Modularize code with clear separation of concerns.
+- Use descriptive variable and function names (e.g., `isAuthenticated`, `handleRequest`).
+- Structure files:
+  - `server`: Everything related to the server and workspace mangement
+  - `modules`: Everything related to the modules which get loaded as a part of the workspace
+  - `utils`: Utility functions that are used across the codebase
+
+Naming Conventions
+- Use snake_case for files and directories (e.g., `auth_handler`).
+- Favor named exports for important plugin components.
+
+List of libraries to use:
+- go-chi/chi: For routing
+- libsql: For database operations
+
+Syntax and Formatting
+- Follow the Go standard style (gofmt).
+- Avoid long functions; refactor into smaller, reusable units.
+- Write clear and concise comments for complex logic.
+
+Security Best Practices
+- Validate all inputs, especially in HTTP request handlers.
+- Use secure defaults for configurations.
+- Avoid hardcoding sensitive information; use environment variables or secure vaults.
+- Handle authentication and authorization rigorously with Zitadel.
+
+Performance Optimization
+- Minimize allocations in hot code paths.
+- Use Go's concurrency primitives (goroutines, channels) judiciously.
+- Implement caching where appropriate for repeated data fetches.
+
+Testing
+- Write unit tests for all functions and methods whenever explicitly asked.
+- Use Go's `testing` package to test middleware, Zitadel integration, and configuration.
+- Mock external dependencies (e.g., Zitadel API) in tests.
+- Implement end-to-end tests for the complete plugin.
+
+Key Conventions
+- Use Go's `context.Context` for passing request-scoped data.
+- Optimize JSON handling with `json.Encoder` and `json.Decoder`.
+- Use Go's built-in `log` package or a structured logging library.
+- Avoid global state; use dependency injection for configuration and dependencies.
