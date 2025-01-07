@@ -11,6 +11,7 @@ import (
 	"github.com/YourTechBud/inferix/utils"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/cors"
 )
 
 func (s *Server) middlewareAuthentication(next http.Handler) http.Handler {
@@ -107,6 +108,14 @@ func (s *Server) middlewareLoadWorkspace(next http.Handler) http.Handler {
 
 func (s *Server) router() http.Handler {
 	router := chi.NewRouter()
+
+	// Setup CORS middleware
+	router.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"http://*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
+		AllowedHeaders:   []string{"*"},
+		AllowCredentials: true,
+	}))
 
 	// Setup the server context middleware
 	router.Use(s.middlewareServerContext, s.middlewareAuthentication)
