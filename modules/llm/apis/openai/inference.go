@@ -72,6 +72,12 @@ func HandleChatCompletion(backends *backends.Backends) http.HandlerFunc {
 		// Prepare the inference options
 		opts := types.NewInferenceOptions(req.TopP, nil, req.MaxTokens, req.Temperature)
 
+		// Prepare the backend options
+		backendOptsInjectFnCallPrompt := r.Header.Get("X-Inferix-Backend-Options-Inject-Fn-Call-Prompt")
+		if backendOptsInjectFnCallPrompt == "true" {
+			opts.BackendOptions.InjectFnCallPrompt = true
+		}
+
 		// Check for dynamic backend headers
 		dynamicBackendType := r.Header.Get("X-Inferix-Dynamic-Backend-Type")
 		dynamicBackendURL := r.Header.Get("X-Inferix-Dynamic-Backend-URL")

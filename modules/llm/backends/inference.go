@@ -20,7 +20,7 @@ func (b *Backends) RunInference(ctx context.Context, req types.InferenceRequest,
 	}
 
 	// Inject function calling prompt if the tools are provided and backend doesn't support it
-	if backend.RunFnInjection() && len(req.Tools) > 0 {
+	if isFunctionInjectionRequired(backend, opts) && len(req.Tools) > 0 {
 		req.Messages = injectFnCall(req.Messages, req.Tools)
 
 		// Remove the tools from the request
@@ -30,6 +30,7 @@ func (b *Backends) RunInference(ctx context.Context, req types.InferenceRequest,
 	// Run inference in a loop
 	// TODO: Make the retry count configurable
 	for i := 0; i < 3; i++ {
+		log.Default().Printf("Running inference (Try: %d)\n", i+1)
 		resp, err := backend.RunInference(ctx, req, opts)
 		if err != nil {
 			log.Default().Printf("unable to run inference: %v", err)
@@ -49,7 +50,7 @@ func (b *Backends) RunInference(ctx context.Context, req types.InferenceRequest,
 		}
 
 		// Check for function call in the response if backend did not support it natively
-		if backend.RunFnInjection() {
+		if isFunctionInjectionRequired(backend, opts) {
 			if strings.Contains(resp.Response.Content, "FUNC_CALL") {
 				// Sanitize the JSON text
 				content := utils.SanitizeJSONText(resp.Response.Content)

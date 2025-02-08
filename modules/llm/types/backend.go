@@ -12,6 +12,7 @@ type Backend interface {
 	CreateEmbeddings(ctx context.Context, req EmbeddingRequest) (EmbeddingResponse, error)
 
 	RunFnInjection() bool
+	EnableEmbeddingsAPI() bool
 }
 
 type StreamingInferenceResponse func(yield func(element InferenceStreamingResponse) bool)

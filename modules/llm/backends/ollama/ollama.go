@@ -12,7 +12,7 @@ type Ollama struct {
 	BaseURL string `json:"base_url,omitempty"`
 
 	// Other fields
-	options config.BackendOptions `json:"-"`
+	options types.BackendOptions `json:"-"`
 }
 
 // New creates a new Ollama backend with the provided configuration.

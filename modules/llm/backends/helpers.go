@@ -30,7 +30,7 @@ func (b *Backends) getModelAndBackend(req *types.InferenceRequest, opts *types.I
 			ID:          "dynamic",
 			BackendType: opts.DynamicBackendOptions.Type,
 			Config:      json.RawMessage(fmt.Sprintf(`{"base_url": "%s", "api_key": "%s"}`, opts.DynamicBackendOptions.URL, opts.DynamicBackendOptions.Key)),
-			Options:     config.BackendOptions{},
+			Options:     types.BackendOptions{},
 		}
 
 		// Create the dynamic backend
@@ -103,12 +103,14 @@ Function Call:
 }
 </code>`)
 
-	// Append a new system message to the messages slice
-	newMessage := types.InferenceMessage{
-		Role:    "system",
-		Content: content.String(),
-	}
-	return append(messages, newMessage)
+	// // Append a new system message to the messages slice
+	// newMessage := types.InferenceMessage{
+	// 	Role:    "system",
+	// 	Content: content.String(),
+	// }
+	// return append(messages, newMessage)
+	messages[len(messages)-1].Content += content.String()
+	return messages
 }
 
 // createBackend creates a new backend based on the provided configuration
@@ -132,4 +134,9 @@ func createBackend(config config.BackendConfig) (types.Backend, error) {
 	}
 
 	return backend, nil
+}
+
+// Add a new method to check if function injection is required
+func isFunctionInjectionRequired(backend types.Backend, opts types.InferenceOptions) bool {
+	return backend.RunFnInjection() || opts.BackendOptions.InjectFnCallPrompt
 }

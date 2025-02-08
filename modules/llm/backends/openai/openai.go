@@ -13,7 +13,7 @@ type OpenAI struct {
 	BaseURL string `json:"base_url,omitempty"`
 
 	// Other fields
-	options config.BackendOptions `json:"-"`
+	options types.BackendOptions `json:"-"`
 }
 
 // New creates a new OpenAI struct with the given API key and base URL.

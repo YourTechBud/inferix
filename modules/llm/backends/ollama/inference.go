@@ -57,12 +57,12 @@ func (backend *Ollama) RunInference(ctx context.Context, req types.InferenceRequ
 		},
 		CreatedAt: createdAt,
 		Stats: &types.InferenceStats{
-			TotalDuration:      *ollamaResp.TotalDuration,
-			LoadDuration:       *ollamaResp.LoadDuration,
-			PromptEvalCount:    *ollamaResp.PromptEvalCount,
-			PromptEvalDuration: *ollamaResp.PromptEvalDuration,
-			EvalCount:          *ollamaResp.EvalCount,
-			EvalDuration:       *ollamaResp.EvalDuration,
+			TotalDuration:      utils.GetUint64(ollamaResp.TotalDuration),
+			LoadDuration:       utils.GetUint64(ollamaResp.LoadDuration),
+			PromptEvalCount:    utils.GetUint64(ollamaResp.PromptEvalCount),
+			PromptEvalDuration: utils.GetUint64(ollamaResp.PromptEvalDuration),
+			EvalCount:          utils.GetUint64(ollamaResp.EvalCount),
+			EvalDuration:       utils.GetUint64(ollamaResp.EvalDuration),
 		},
 	}, nil
 }

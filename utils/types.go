@@ -24,3 +24,11 @@ func (m *RawMessage) unmarshal(data []byte) error {
 	*m = append((*m)[0:0], data...)
 	return nil
 }
+
+// GetUint64 returns the value of a pointer to a uint64, or 0 if the pointer is nil.
+func GetUint64(ptr *uint64) uint64 {
+	if ptr == nil {
+		return 0
+	}
+	return *ptr
+}

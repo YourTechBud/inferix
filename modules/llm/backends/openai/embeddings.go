@@ -9,11 +9,6 @@ import (
 )
 
 func (backend *OpenAI) CreateEmbeddings(ctx context.Context, req types.EmbeddingRequest) (types.EmbeddingResponse, error) {
-	// Check if the embeddings API is enabled
-	if !backend.options.EnableEmbeddingsAPI {
-		return types.EmbeddingResponse{}, utils.NewStandardError(http.StatusBadRequest, "Embeddings API is disabled", "embeddings_disabled")
-	}
-
 	// Make the request
 	openaiResponse, err := utils.MakeHTTPRequest[types.EmbeddingResponse, utils.StandardError](ctx, http.MethodPost, backend.BaseURL+"/embeddings", req)
 	if err != nil {

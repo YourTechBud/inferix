@@ -2,8 +2,10 @@ package backends
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/YourTechBud/inferix/modules/llm/types"
+	"github.com/YourTechBud/inferix/utils"
 )
 
 // CreateEmbeddings creates embeddings using the appropriate backend.
@@ -21,6 +23,11 @@ func (b *Backends) CreateEmbeddings(ctx context.Context, req types.EmbeddingRequ
 	backend, err := b.getBackend(modelConfig.Backend)
 	if err != nil {
 		return types.EmbeddingResponse{}, err
+	}
+
+	// Check if the backend supports embeddings
+	if !backend.EnableEmbeddingsAPI() {
+		return types.EmbeddingResponse{}, utils.NewStandardError(http.StatusBadRequest, "Embeddings API is disabled", "embeddings_disabled")
 	}
 
 	// Create embeddings

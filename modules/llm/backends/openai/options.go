@@ -4,3 +4,8 @@ package openai
 func (backend *OpenAI) RunFnInjection() bool {
 	return backend.options.InjectFnCallPrompt
 }
+
+// EnableEmbeddingsAPI returns true if the backend supports embeddings
+func (backend *OpenAI) EnableEmbeddingsAPI() bool {
+	return backend.options.EnableEmbeddingsAPI
+}

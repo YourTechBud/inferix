@@ -51,8 +51,17 @@ type InferenceOptions struct {
 	Temperature   *float64        `json:"temperature,omitempty"`
 	DriverOptions json.RawMessage `json:"driver_options"`
 
+	// Backend options
+	BackendOptions BackendOptions `json:"backend_options,omitempty"`
+
 	// Dynamic backend options
 	DynamicBackendOptions *DynamicBackendOptions `json:"dynamic_backend_options,omitempty"`
+}
+
+// BackendOptions is a struct for backend options
+type BackendOptions struct {
+	InjectFnCallPrompt  bool `json:"inject_fn_call_prompt"`
+	EnableEmbeddingsAPI bool `json:"enable_embeddings_api"`
 }
 
 type DynamicBackendOptions struct {
