@@ -2,6 +2,7 @@ package models
 
 import (
 	"strings"
+	"sync"
 
 	"github.com/YourTechBud/inferix/modules/llm/config"
 	"github.com/YourTechBud/inferix/utils"
@@ -9,8 +10,11 @@ import (
 
 // Models stores the model configurations
 type Models struct {
-	models  map[string]config.ModelConfig
-	storage *utils.WorkspaceStorage
+	lock sync.RWMutex
+
+	configuredModels map[string]config.ModelConfig
+	finalizedModels  map[string]config.ModelConfig
+	storage          *utils.WorkspaceStorage
 }
 
 // New initializes the models map with the given configurations
@@ -31,5 +35,9 @@ func New(modelConfigs []config.ModelConfig, storage *utils.WorkspaceStorage) *Mo
 			models[alias] = model
 		}
 	}
-	return &Models{models, storage}
+	return &Models{
+		configuredModels: models,
+		finalizedModels:  models, // Initially, the finalized models are the same as the configured models
+		storage:          storage,
+	}
 }

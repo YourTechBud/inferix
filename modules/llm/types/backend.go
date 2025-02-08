@@ -11,6 +11,8 @@ type Backend interface {
 
 	CreateEmbeddings(ctx context.Context, req EmbeddingRequest) (EmbeddingResponse, error)
 
+	GetModels(ctx context.Context) ([]ModelObject, error)
+
 	RunFnInjection() bool
 	EnableEmbeddingsAPI() bool
 }

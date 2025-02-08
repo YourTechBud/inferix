@@ -28,3 +28,8 @@ func New(backends []config.BackendConfig, models *models.Models) (*Backends, err
 		backends: backendsMap,
 	}, nil
 }
+
+// GetBackends returns all backends
+func (b *Backends) GetBackends() map[string]types.Backend {
+	return b.backends
+}

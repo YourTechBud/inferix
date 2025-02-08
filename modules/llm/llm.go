@@ -2,6 +2,7 @@ package llm
 
 import (
 	"encoding/json"
+	"sync"
 
 	"github.com/go-chi/chi/v5"
 
@@ -17,6 +18,10 @@ type LLM struct {
 	models   *models.Models
 	backends *backends.Backends
 	routes   chi.Router
+
+	// Goroutine management
+	done chan struct{}
+	wg   sync.WaitGroup
 }
 
 // New creates a new LLM struct
@@ -36,21 +41,30 @@ func New(workspaceCtx *utils.WorkspaceContext, cfg json.RawMessage) (utils.Modul
 		return nil, err
 	}
 
-	// Return the module
-	return &LLM{
+	llm := &LLM{
 		models:   models,
 		backends: backends,
 		routes:   initializeRoutes(models, backends),
-	}, nil
+		done:     make(chan struct{}),
+	}
+
+	// Start model polling
+	llm.startModelPolling()
+
+	// Return the module
+	return llm, nil
 }
 
 // Close closes the module
 func (llm *LLM) Close() error {
-	// TODO: close all the backends
+	// Signal all goroutines to stop
+	close(llm.done)
+
+	// Wait for the model polling goroutine to finish
+	llm.wg.Wait()
 
 	// Close the router
 	llm.routes = nil
 
-	// Return nil
 	return nil
 }

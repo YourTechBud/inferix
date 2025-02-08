@@ -2,6 +2,7 @@ package ollama
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/YourTechBud/inferix/modules/llm/types"
 )
@@ -78,4 +79,27 @@ type OllamaEmbeddingsResponse struct {
 	TotalDuration   uint64      `json:"total_duration"`
 	LoadDuration    uint64      `json:"load_duration"`
 	PromptEvalCount uint64      `json:"prompt_eval_count"`
+}
+
+// OllamaModelDetails represents the details field in the Ollama API response
+type OllamaModelDetails struct {
+	Format            string   `json:"format"`
+	Family            string   `json:"family"`
+	Families          []string `json:"families"`
+	ParameterSize     string   `json:"parameter_size"`
+	QuantizationLevel string   `json:"quantization_level"`
+}
+
+// OllamaModel represents a single model in the Ollama API response
+type OllamaModel struct {
+	Name       string             `json:"name"`
+	ModifiedAt time.Time          `json:"modified_at"`
+	Size       int64              `json:"size"`
+	Digest     string             `json:"digest"`
+	Details    OllamaModelDetails `json:"details"`
+}
+
+// OllamaModelsResponse represents the response from the Ollama API /api/tags endpoint
+type OllamaModelsResponse struct {
+	Models []OllamaModel `json:"models"`
 }

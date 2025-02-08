@@ -13,8 +13,10 @@ import (
 
 // GetModel returns the model configuration for the given model name
 func (m *Models) GetModel(modelName string) (config.ModelConfig, error) {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
 
-	model, found := m.models[modelName]
+	model, found := m.finalizedModels[modelName]
 	if !found {
 		return config.ModelConfig{}, utils.NewStandardError(http.StatusNotFound, fmt.Sprintf("model %s not found", modelName), "model_not_found")
 	}
@@ -24,9 +26,12 @@ func (m *Models) GetModel(modelName string) (config.ModelConfig, error) {
 
 // GetModels returns the list of models
 func (m *Models) GetModels(ctx context.Context) ([]types.ModelObject, error) {
-	models := make([]types.ModelObject, 0, len(m.models))
+	m.lock.RLock()
+	defer m.lock.RUnlock()
 
-	for id, model := range m.models {
+	models := make([]types.ModelObject, 0, len(m.finalizedModels))
+
+	for id, model := range m.finalizedModels {
 		model := types.ModelObject{
 			ID:      id,
 			Created: utils.ProcessStartTime,
@@ -49,4 +54,34 @@ func (m *Models) GetModels(ctx context.Context) ([]types.ModelObject, error) {
 	}
 
 	return models, nil
+}
+
+// MergeModels merges the provided ModelObjects into the models map
+func (m *Models) MergeModels(modelObjects []types.ModelObject) {
+	// Create a new map for the merged models
+	newModels := make(map[string]config.ModelConfig, len(modelObjects))
+
+	// Convert ModelObjects to ModelConfig
+	for _, obj := range modelObjects {
+		// Create new ModelConfig from ModelObject
+		modelConfig := config.ModelConfig{
+			ID:             obj.ID,
+			Backend:        obj.OwnedBy,
+			Target:         obj.ID,
+			Aliases:        []string{},
+			DefaultOptions: config.DefaultModelOptions(),
+		}
+
+		newModels[obj.ID] = modelConfig
+	}
+
+	// Finally, copy all configured models overriding similarly named models if any
+	for k, v := range m.configuredModels {
+		newModels[k] = v
+	}
+
+	// Update the mergedModels map
+	m.lock.Lock()
+	m.finalizedModels = newModels
+	m.lock.Unlock()
 }
