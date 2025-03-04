@@ -1,6 +1,9 @@
 package types
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 // CreateChatCompletionRequest represents a request to create a chat completion.
 type CreateChatCompletionRequest struct {
@@ -70,12 +73,26 @@ type ChatCompletionRequestFunctionMessage struct {
 
 // ChatCompletionRequestMessage represents a message in the chat completion request.
 type ChatCompletionRequestMessage struct {
-	Content      string                          `json:"content,omitempty"`
+	Content      any                             `json:"content,omitempty"`
 	Role         string                          `json:"role"`
 	Name         *string                         `json:"name,omitempty"`
 	ToolCallID   *string                         `json:"tool_call_id,omitempty"`
 	ToolCalls    []ChatCompletionMessageToolCall `json:"tool_calls,omitempty"`
 	FunctionCall *ChatCompletionFunctionCall     `json:"function_call,omitempty"`
+}
+
+func (message ChatCompletionRequestMessage) GetContent() string {
+	if message.Content == nil {
+		return ""
+	}
+
+	switch c := message.Content.(type) {
+	case string:
+		return c
+	case []any:
+		return c[0].(map[string]any)["text"].(string)
+	}
+	panic(fmt.Sprintf("Unsupported content type: %T", message.Content))
 }
 
 // ChatCompletionFunctionCallOption represents an option to call a function.

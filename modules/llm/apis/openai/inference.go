@@ -24,7 +24,7 @@ func HandleChatCompletion(backends *backends.Backends) http.HandlerFunc {
 		for i, message := range req.Messages {
 			messages[i] = types.InferenceMessage{
 				Role:    message.Role,
-				Content: message.Content,
+				Content: message.GetContent(),
 			}
 		}
 

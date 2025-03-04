@@ -33,10 +33,10 @@ func New(workspaceCtx *utils.WorkspaceContext, cfg json.RawMessage) (utils.Modul
 	}
 
 	// Create a new models struct
-	models := models.New(config.Models, workspaceCtx.Storage)
+	models := models.New(config.ModelConfigs, config.ModelSettings, workspaceCtx.Storage)
 
 	// Create a new backends struct
-	backends, err := backends.New(config.Backends, models)
+	backends, err := backends.New(config.BackendConfigs, models)
 	if err != nil {
 		return nil, err
 	}

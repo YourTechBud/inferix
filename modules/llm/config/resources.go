@@ -18,5 +18,11 @@ func GetResourcesInfo() []utils.ResourceInfo {
 				return new(ModelConfig)
 			},
 		},
+		{
+			Path: "model-settings",
+			New: func() utils.Resource {
+				return new(ModelSettings)
+			},
+		},
 	}
 }

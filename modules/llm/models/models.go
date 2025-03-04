@@ -14,11 +14,12 @@ type Models struct {
 
 	configuredModels map[string]config.ModelConfig
 	finalizedModels  map[string]config.ModelConfig
+	modelSettings    []config.ModelSettings
 	storage          *utils.WorkspaceStorage
 }
 
 // New initializes the models map with the given configurations
-func New(modelConfigs []config.ModelConfig, storage *utils.WorkspaceStorage) *Models {
+func New(modelConfigs []config.ModelConfig, modelSettings []config.ModelSettings, storage *utils.WorkspaceStorage) *Models {
 	models := make(map[string]config.ModelConfig)
 	for _, model := range modelConfigs {
 		// Trim whitespace
@@ -27,6 +28,12 @@ func New(modelConfigs []config.ModelConfig, storage *utils.WorkspaceStorage) *Mo
 		if model.DefaultOptions == nil {
 			model.DefaultOptions = config.DefaultModelOptions()
 		}
+
+		// Apply any matching model settings
+		for _, settings := range modelSettings {
+			settings.ApplySettings(&model)
+		}
+
 		models[model.ID] = model
 
 		// Add aliases
@@ -38,6 +45,7 @@ func New(modelConfigs []config.ModelConfig, storage *utils.WorkspaceStorage) *Mo
 	return &Models{
 		configuredModels: models,
 		finalizedModels:  models, // Initially, the finalized models are the same as the configured models
+		modelSettings:    modelSettings,
 		storage:          storage,
 	}
 }

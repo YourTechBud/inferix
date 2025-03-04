@@ -111,7 +111,7 @@ func (s *Server) router() http.Handler {
 
 	// Setup CORS middleware
 	router.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"http://*"},
+		AllowedOrigins:   []string{"*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
 		AllowedHeaders:   []string{"*"},
 		AllowCredentials: true,

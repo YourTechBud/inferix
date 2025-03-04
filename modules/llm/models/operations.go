@@ -72,6 +72,11 @@ func (m *Models) MergeModels(modelObjects []types.ModelObject) {
 			DefaultOptions: config.DefaultModelOptions(),
 		}
 
+		// Apply any matching model settings
+		for _, settings := range m.modelSettings {
+			settings.ApplySettings(&modelConfig)
+		}
+
 		newModels[obj.ID] = modelConfig
 	}
 
