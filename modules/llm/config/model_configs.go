@@ -34,10 +34,7 @@ type ModelOptions struct {
 
 // DefaultModelOptions returns default options for the model
 func DefaultModelOptions() *ModelOptions {
-	temperature := float64(0.2)
-	return &ModelOptions{
-		Temperature: &temperature,
-	}
+	return &ModelOptions{}
 }
 
 // MergeOptions merges the given options with the default options. It modifies the given options directly.

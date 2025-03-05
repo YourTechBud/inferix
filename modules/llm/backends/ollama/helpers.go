@@ -2,6 +2,7 @@ package ollama
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/YourTechBud/inferix/modules/llm/types"
 )
@@ -23,9 +24,23 @@ func convertToOllamaRequest(req types.InferenceRequest, opts types.InferenceOpti
 
 	ollamaMessages := make([]OllamaMessage, len(req.Messages))
 	for i, msg := range req.Messages {
+
+		// Create list of images
+		var images []string = nil
+		for _, image := range msg.Images {
+			parts := strings.SplitN(image, ";", 2)
+			if len(parts) > 1 {
+				images = append(images, strings.TrimPrefix(parts[1], "base64,"))
+			} else {
+				images = append(images, image)
+			}
+		}
+
+		// Create the message
 		ollamaMessages[i] = OllamaMessage{
 			Role:    msg.Role,
 			Content: msg.Content,
+			Images:  images,
 		}
 	}
 

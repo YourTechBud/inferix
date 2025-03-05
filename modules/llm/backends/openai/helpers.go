@@ -9,9 +9,22 @@ func convertToOpenAIRequest(req types.InferenceRequest, opts types.InferenceOpti
 	// Convert messages
 	messages := make([]types.ChatCompletionRequestMessage, len(req.Messages))
 	for i, message := range req.Messages {
+		var content any
+		if len(message.Images) == 0 {
+			content = message.Content
+		} else {
+			contentArray := make([]any, 0, len(message.Images)+1)
+			contentArray = append(contentArray, map[string]any{"type": "text", "text": message.Content})
+			for _, image := range message.Images {
+				contentArray = append(contentArray, map[string]any{"type": "image_url", "image_url": map[string]any{"url": image}})
+			}
+			content = contentArray
+		}
+
+		// Create the message
 		messages[i] = types.ChatCompletionRequestMessage{
 			Role:    message.Role,
-			Content: message.Content,
+			Content: content,
 
 			// TODO: Add tools for backends which support it
 		}

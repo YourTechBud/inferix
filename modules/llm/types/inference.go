@@ -27,8 +27,9 @@ const (
 )
 
 type InferenceMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content,omitempty"`
+	Role    string   `json:"role"`
+	Content string   `json:"content,omitempty"`
+	Images  []string `json:"images,omitempty"` // OpenAI compatible image_urls
 }
 
 type Tool struct {

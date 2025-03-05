@@ -81,17 +81,37 @@ type ChatCompletionRequestMessage struct {
 	FunctionCall *ChatCompletionFunctionCall     `json:"function_call,omitempty"`
 }
 
-func (message ChatCompletionRequestMessage) GetContent() string {
-	if message.Content == nil {
-		return ""
-	}
+func (message ChatCompletionRequestMessage) GetMessage() InferenceMessage {
 
 	switch c := message.Content.(type) {
 	case string:
-		return c
+		return InferenceMessage{
+			Role:    message.Role,
+			Content: c,
+		}
 	case []any:
-		return c[0].(map[string]any)["text"].(string)
+		// If the content is an empty array, return an empty string
+		if len(c) == 0 {
+			return InferenceMessage{
+				Role:    message.Role,
+				Content: "",
+			}
+		}
+
+		msg := InferenceMessage{Role: message.Role}
+
+		for _, content := range c {
+			m := content.(map[string]any)
+			if m["type"] == "text" {
+				msg.Content = m["text"].(string)
+			} else if m["type"] == "image_url" {
+				msg.Images = append(msg.Images, m["image_url"].(map[string]any)["url"].(string))
+			}
+		}
+
+		return msg
 	}
+
 	panic(fmt.Sprintf("Unsupported content type: %T", message.Content))
 }
 

@@ -22,10 +22,7 @@ func HandleChatCompletion(backends *backends.Backends) http.HandlerFunc {
 		// Prepare the request
 		messages := make([]types.InferenceMessage, len(req.Messages))
 		for i, message := range req.Messages {
-			messages[i] = types.InferenceMessage{
-				Role:    message.Role,
-				Content: message.GetContent(),
-			}
+			messages[i] = message.GetMessage()
 		}
 
 		// Don't allow tool use for streaming responses

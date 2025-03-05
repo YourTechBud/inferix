@@ -24,7 +24,7 @@ type OllamaMessage struct {
 	Role      string                       `json:"role"`
 	Content   string                       `json:"content,omitempty"`
 	ToolCalls []OllamaFunctionCallResponse `json:"tool_calls,omitempty"`
-
+	Images    []string                     `json:"images,omitempty"`
 	// TODO: Add support for images
 }
 
