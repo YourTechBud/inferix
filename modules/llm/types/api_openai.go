@@ -3,6 +3,8 @@ package types
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/YourTechBud/inferix/utils"
 )
 
 // CreateChatCompletionRequest represents a request to create a chat completion.
@@ -81,21 +83,20 @@ type ChatCompletionRequestMessage struct {
 	FunctionCall *ChatCompletionFunctionCall     `json:"function_call,omitempty"`
 }
 
-func (message ChatCompletionRequestMessage) GetMessage() InferenceMessage {
-
+func (message ChatCompletionRequestMessage) GetMessage() (InferenceMessage, error) {
 	switch c := message.Content.(type) {
 	case string:
 		return InferenceMessage{
 			Role:    message.Role,
 			Content: c,
-		}
+		}, nil
 	case []any:
 		// If the content is an empty array, return an empty string
 		if len(c) == 0 {
 			return InferenceMessage{
 				Role:    message.Role,
 				Content: "",
-			}
+			}, nil
 		}
 
 		msg := InferenceMessage{Role: message.Role}
@@ -105,14 +106,20 @@ func (message ChatCompletionRequestMessage) GetMessage() InferenceMessage {
 			if m["type"] == "text" {
 				msg.Content = m["text"].(string)
 			} else if m["type"] == "image_url" {
-				msg.Images = append(msg.Images, m["image_url"].(map[string]any)["url"].(string))
+				url := m["image_url"].(map[string]any)["url"].(string)
+				base64Image, err := utils.DownloadAndConvertToBase64(url)
+				if err != nil {
+					return InferenceMessage{}, err
+				}
+
+				msg.Images = append(msg.Images, base64Image)
 			}
 		}
 
-		return msg
+		return msg, nil
 	}
 
-	panic(fmt.Sprintf("Unsupported content type: %T", message.Content))
+	return InferenceMessage{}, fmt.Errorf("unsupported content type: %T", message.Content)
 }
 
 // ChatCompletionFunctionCallOption represents an option to call a function.

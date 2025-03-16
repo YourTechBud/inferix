@@ -45,6 +45,7 @@ type FunctionCallRequest struct {
 
 // OllamaResponse represents the structure for the response.
 type OllamaResponse struct {
+	Error              string        `json:"error"` // Only needed for streaming responses
 	Model              string        `json:"model"`
 	CreatedAt          string        `json:"created_at"`
 	Message            OllamaMessage `json:"message"`

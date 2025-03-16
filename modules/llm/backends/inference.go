@@ -45,7 +45,7 @@ func (b *Backends) RunInference(ctx context.Context, req types.InferenceRequest,
 		resp.Response.Content = strings.TrimSpace(resp.Response.Content)
 
 		// Check if the response is too short
-		if len(resp.Response.Content) < 5 && resp.Response.FnCall == nil {
+		if len(strings.TrimSpace(resp.Response.Content)) == 0 && resp.Response.FnCall == nil {
 			continue
 		}
 

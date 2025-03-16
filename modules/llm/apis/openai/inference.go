@@ -22,7 +22,13 @@ func HandleChatCompletion(backends *backends.Backends) http.HandlerFunc {
 		// Prepare the request
 		messages := make([]types.InferenceMessage, len(req.Messages))
 		for i, message := range req.Messages {
-			messages[i] = message.GetMessage()
+			msg, err := message.GetMessage()
+			if err != nil {
+				utils.WriteJSONError(w, utils.NewStandardError(http.StatusBadRequest, err.Error(), "invalid_request"))
+				return
+			}
+
+			messages[i] = msg
 		}
 
 		// Don't allow tool use for streaming responses

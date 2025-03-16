@@ -25,6 +25,9 @@ RUN go build -a -ldflags="-s -w" -o /app/inferix
 # Stage 2: Create a minimal container to run the Go binary
 FROM debian:12.8-slim AS runtime
 
+# Install ca-certificates
+RUN apt-get update && apt-get install -y ca-certificates
+
 # Create a non-root user and group
 RUN groupadd --gid 1001 appuser && \
     useradd --uid 1001 --gid appuser --shell /bin/bash --create-home appuser

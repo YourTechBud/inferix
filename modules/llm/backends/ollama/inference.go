@@ -101,6 +101,12 @@ func (backend *Ollama) RunStreamingInference(ctx context.Context, req types.Infe
 				return
 			}
 
+			// Check if we have an error
+			if ollamaResp.Error != "" {
+				yield(types.InferenceStreamingResponse{Err: utils.NewStandardError(http.StatusInternalServerError, ollamaResp.Error, "backend_invalid_response")})
+				return
+			}
+
 			// Convert the created at time
 			createdAt, err := time.Parse(time.RFC3339, ollamaResp.CreatedAt)
 			if err != nil {
