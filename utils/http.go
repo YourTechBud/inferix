@@ -137,6 +137,47 @@ func MakeHTTPStream(ctx context.Context, method, url string, body any) func(yiel
 	}
 }
 
+func MakeHTTPBinaryStream(ctx context.Context, method, url string, body any) (io.Reader, error) {
+	// Prepare the request
+	req, err := prepareHTTPRequest(ctx, method, url, body)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fire the request
+	client := http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if the status code is not 2xx
+	if res.StatusCode >= 400 || res.StatusCode < 200 {
+		defer res.Body.Close()
+
+		data := new(StandardError)
+		if err := json.NewDecoder(res.Body).Decode(data); err != nil {
+			return nil, err
+		}
+
+		return nil, data
+	}
+
+	// Create a pipe
+	reader, writer := io.Pipe()
+
+	// Start a goroutine to copy the response body to the writer
+	go func() {
+		defer res.Body.Close()
+		defer writer.Close()
+
+		_, _ = io.Copy(writer, res.Body)
+	}()
+
+	// Return the reader
+	return bufio.NewReader(reader), nil
+}
+
 func prepareHTTPRequest(ctx context.Context, method, url string, body any) (*http.Request, error) {
 	// Marshal the body if provided
 	var bodyReader io.Reader

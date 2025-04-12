@@ -27,6 +27,7 @@ func initializeRoutes(models *models.Models, backends *backends.Backends) chi.Ro
 	// APIs for OpenAI
 	router.Post("/chat/completions", openai.HandleChatCompletion(backends))
 	router.Post("/embeddings", openai.HandleCreateEmbeddings(backends))
+	router.Post("/audio/speech", openai.HandleTextToSpeech(backends))
 	router.Get("/models", openai.HandleGetModels(models))
 
 	// APIs for TEI
